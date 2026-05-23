@@ -5,17 +5,14 @@ import {
     Shield,
     Calendar,
     ClipboardList,
-    BookOpen,
-    GraduationCap,
     School,
-    ClipboardCheck,
-    UserCheck,
-    FileText,
-    Settings,
-    BarChart3,
-    BookMarked,
-    CalendarDays,
     Briefcase,
+    FolderArchive,
+    Link,
+    LayoutDashboard,
+    Layers,
+    Inbox,
+    Send,
 } from 'lucide-react';
 
 /**
@@ -27,6 +24,11 @@ export const commonNavItems: NavItem[] = [
         href: '/dashboard',
         icon: LayoutGrid,
     },
+    {
+        title: 'Pengarsipan',
+        href: '/arsip',
+        icon: FolderArchive,
+    },
 ];
 
 /**
@@ -34,7 +36,17 @@ export const commonNavItems: NavItem[] = [
  * Key = nama role (sesuai database)
  */
 export const roleNavigation: Record<string, NavItem[]> = {
-    admin: [
+    superadmin: [
+        {
+            title: 'Dashboard',
+            href: '/admin/dashboard',
+            icon: LayoutDashboard,
+        },
+        {
+            title: 'Pelanggaran Ujian',
+            href: '/admin/pelanggaran',
+            icon: ClipboardList,
+        },
         {
             title: 'Manajemen User',
             href: '/admin/users',
@@ -52,59 +64,80 @@ export const roleNavigation: Record<string, NavItem[]> = {
         },
         {
             title: 'Kalender Kegiatan',
-            href: '/admin/calendar',
+            href: '/calendar',
             icon: Calendar,
         },
         {
             title: 'Rekapan Kegiatan',
-            href: '/admin/calendar/recap',
+            href: '/calendar/recap',
             icon: ClipboardList,
+        },
+    ],
+
+    'admin akademik': [
+        {
+            title: 'Dashboard',
+            href: '/admin/dashboard',
+            icon: LayoutDashboard,
+        },
+        {
+            title: 'Data Jenjang',
+            href: '/admin/jenjang',
+            icon: Layers,
+        },
+        {
+            title: 'Data Kelas',
+            href: '/admin/rombels',
+            icon: School,
+        },
+        {
+            title: 'Data Guru',
+            href: '/admin/guru',
+            icon: Users,
+        },
+    ],
+
+    'admin persuratan': [
+        {
+            title: 'Dashboard',
+            href: '/admin/dashboard',
+            icon: LayoutDashboard,
+        },
+        {
+            title: 'Surat Masuk',
+            href: '/admin/surat-masuk',
+            icon: Inbox,
+        },
+        {
+            title: 'Surat Keluar',
+            href: '/admin/surat-keluar',
+            icon: Send,
         },
     ],
 
     guru: [
         {
-            title: 'Jadwal Mengajar',
-            href: '/guru/jadwal',
-            icon: CalendarDays,
+            title: 'Kalender Kegiatan',
+            href: '/calendar',
+            icon: Calendar,
         },
         {
-            title: 'Absensi Siswa',
-            href: '/guru/absensi',
-            icon: ClipboardCheck,
-        },
-        {
-            title: 'Nilai & Rapor',
-            href: '/guru/nilai',
-            icon: BarChart3,
-        },
-        {
-            title: 'Materi Ajar',
-            href: '/guru/materi',
-            icon: BookOpen,
+            title: 'Tautan Kelas',
+            href: '/guru/classroom-links',
+            icon: Link,
         },
     ],
 
-    siswa: [
+    murid: [
         {
-            title: 'Jadwal Pelajaran',
-            href: '/siswa/jadwal',
-            icon: CalendarDays,
+            title: 'Kalender Kegiatan',
+            href: '/calendar',
+            icon: Calendar,
         },
         {
-            title: 'Nilai Saya',
-            href: '/siswa/nilai',
-            icon: BarChart3,
-        },
-        {
-            title: 'Materi & Tugas',
-            href: '/siswa/materi',
-            icon: BookMarked,
-        },
-        {
-            title: 'Absensi Saya',
-            href: '/siswa/absensi',
-            icon: ClipboardCheck,
+            title: 'Daftar Kelas',
+            href: '/siswa/classroom-links',
+            icon: Link,
         },
     ],
 
@@ -115,92 +148,9 @@ export const roleNavigation: Record<string, NavItem[]> = {
 /**
  * Navigasi berdasarkan JABATAN
  * Key = nama jabatan (sesuai database)
+ * Belum ada route jabatan yang tersedia — dikosongkan sementara
  */
-export const jabatanNavigation: Record<string, NavItem[]> = {
-    'kepala sekolah': [
-        {
-            title: 'Laporan Sekolah',
-            href: '/jabatan/kepala-sekolah/laporan',
-            icon: FileText,
-        },
-        {
-            title: 'Data Guru & Staff',
-            href: '/jabatan/kepala-sekolah/guru',
-            icon: Users,
-        },
-        {
-            title: 'Kalender Kegiatan',
-            href: '/admin/calendar',
-            icon: Calendar,
-        },
-        {
-            title: 'Statistik Sekolah',
-            href: '/jabatan/kepala-sekolah/statistik',
-            icon: BarChart3,
-        },
-        {
-            title: 'Pengaturan Sekolah',
-            href: '/jabatan/kepala-sekolah/pengaturan',
-            icon: Settings,
-        },
-    ],
-
-    'wali kelas': [
-        {
-            title: 'Data Siswa Kelas',
-            href: '/jabatan/wali-kelas/siswa',
-            icon: GraduationCap,
-        },
-        {
-            title: 'Absensi Kelas',
-            href: '/jabatan/wali-kelas/absensi',
-            icon: ClipboardCheck,
-        },
-        {
-            title: 'Nilai Kelas',
-            href: '/jabatan/wali-kelas/nilai',
-            icon: BarChart3,
-        },
-        {
-            title: 'Bimbingan Siswa',
-            href: '/jabatan/wali-kelas/bimbingan',
-            icon: UserCheck,
-        },
-        {
-            title: 'Rapor Kelas',
-            href: '/jabatan/wali-kelas/rapor',
-            icon: FileText,
-        },
-    ],
-
-    kurikulum: [
-        {
-            title: 'Manajemen Kurikulum',
-            href: '/jabatan/kurikulum/manajemen',
-            icon: BookOpen,
-        },
-        {
-            title: 'Jadwal Pelajaran',
-            href: '/jabatan/kurikulum/jadwal',
-            icon: CalendarDays,
-        },
-        {
-            title: 'Distribusi Guru',
-            href: '/jabatan/kurikulum/distribusi',
-            icon: School,
-        },
-        {
-            title: 'Silabus & RPP',
-            href: '/jabatan/kurikulum/silabus',
-            icon: BookMarked,
-        },
-        {
-            title: 'Kalender Akademik',
-            href: '/jabatan/kurikulum/kalender',
-            icon: Calendar,
-        },
-    ],
-};
+export const jabatanNavigation: Record<string, NavItem[]> = {};
 
 /**
  * Helper: dapatkan NavItems berdasarkan active_mode

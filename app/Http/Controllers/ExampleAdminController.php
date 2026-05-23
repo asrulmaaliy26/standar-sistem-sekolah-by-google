@@ -137,7 +137,7 @@ class ExampleAdminController extends Controller
             'user' => $user->only('id', 'name', 'email'),
             'roles' => $user->roles->pluck('name'),
             'is_admin' => $user->isAdmin(),
-            'has_admin_role' => $user->hasRole('admin'),
+            'has_admin_role' => $user->hasRole('superadmin'),
         ]);
     }
 
@@ -157,7 +157,7 @@ class ExampleAdminController extends Controller
         }
 
         // Way 3: Via helper
-        if (!RoleHelper::userHasRole(auth()->id(), 'admin')) {
+        if (!RoleHelper::userHasRole(auth()->id(), 'superadmin')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

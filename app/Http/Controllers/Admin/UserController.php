@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Jabatan;
+use App\Models\Rombel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -107,6 +108,7 @@ class UserController extends Controller
         $user->loadMissing('roles', 'jabatan');
         $roles          = Role::all(['id', 'name']);
         $jabatan        = Jabatan::all(['id', 'name']);
+        $rombels        = Rombel::all(['id', 'name']);
         $userRoles      = $user->roles->pluck('id')->toArray();
         $userJabatanIds = $user->jabatan->pluck('id')->toArray();
 
@@ -115,9 +117,11 @@ class UserController extends Controller
                 'id'    => $user->id,
                 'name'  => $user->name,
                 'email' => $user->email,
+                'rombel_id' => $user->rombel_id,
             ],
             'roles'          => $roles,
             'jabatan'        => $jabatan,
+            'rombels'        => $rombels,
             'userRoles'      => $userRoles,
             'userJabatanIds' => $userJabatanIds,
         ]);
@@ -177,11 +181,15 @@ class UserController extends Controller
      */
     public function impersonate(User $user)
     {
-        // Store original admin ID to allow reverting back
-        session()->put('impersonated_by', auth()->id());
+        // Store original admin ID before switching
+        $originalId = auth()->id();
 
         // Login as the selected user
         auth()->login($user);
+
+        // Regenerate session to get a fresh CSRF token, but keep impersonated_by
+        request()->session()->regenerate();
+        session()->put('impersonated_by', $originalId);
 
         // Redirect to dashboard (now logged in as the selected user)
         return redirect()->route('dashboard');
@@ -194,8 +202,14 @@ class UserController extends Controller
     {
         if (session()->has('impersonated_by')) {
             $originalId = session()->pull('impersonated_by');
+
+            // Login kembali sebagai admin original
             auth()->loginUsingId($originalId);
-            return redirect()->route('admin.dashboard')->with('success', 'Berhasil kembali ke akun Admin.');
+
+            // Regenerate session agar CSRF token segar dan valid
+            request()->session()->regenerate();
+
+            return redirect()->route('admin.users.index')->with('success', 'Berhasil kembali ke akun Admin.');
         }
 
         return redirect()->route('dashboard');
@@ -213,10 +227,7 @@ class UserController extends Controller
         $role = Role::find($validated['role_id']);
         $user->assignRole($role->name);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Role {$role->name} assigned to {$user->name}",
-        ]);
+        return redirect()->back()->with('success', "Role {$role->name} assigned to {$user->name}");
     }
 
     /**
@@ -231,10 +242,7 @@ class UserController extends Controller
         $role = Role::find($validated['role_id']);
         $user->removeRole($role->name);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Role {$role->name} removed from {$user->name}",
-        ]);
+        return redirect()->back()->with('success', "Role {$role->name} removed from {$user->name}");
     }
 
     /**
@@ -249,10 +257,7 @@ class UserController extends Controller
         $jabatan = Jabatan::find($validated['jabatan_id']);
         $user->assignJabatan($jabatan);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Jabatan {$jabatan->name} diberikan ke {$user->name}",
-        ]);
+        return redirect()->back()->with('success', "Jabatan {$jabatan->name} diberikan ke {$user->name}");
     }
 
     /**
@@ -267,9 +272,29 @@ class UserController extends Controller
         $jabatan = Jabatan::find($validated['jabatan_id']);
         $user->removeJabatan($jabatan);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Jabatan {$jabatan->name} dihapus dari {$user->name}",
+        return redirect()->back()->with('success', "Jabatan {$jabatan->name} dihapus dari {$user->name}");
+    }
+
+    /**
+     * Assign rombel to user.
+     */
+    public function assignRombel(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'rombel_id' => 'required|exists:rombels,id',
         ]);
+
+        $user->update(['rombel_id' => $validated['rombel_id']]);
+
+        return redirect()->back()->with('success', "Kelas berhasil diatur untuk {$user->name}");
+    }
+
+    /**
+     * Remove rombel from user.
+     */
+    public function removeRombel(Request $request, User $user)
+    {
+        $user->update(['rombel_id' => null]);
+        return redirect()->back()->with('success', "Kelas dihapus dari profil {$user->name}");
     }
 }

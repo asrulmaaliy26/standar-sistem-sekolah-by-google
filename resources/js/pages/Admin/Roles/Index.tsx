@@ -86,7 +86,7 @@ export default function RolesIndex({ roles }: RolesIndexProps) {
                                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-foreground sm:pl-6">
                                             <span
                                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                                    role.name === 'admin'
+                                                    role.name === 'superadmin'
                                                         ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                                                         : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                                                 }`}
@@ -113,7 +113,7 @@ export default function RolesIndex({ roles }: RolesIndexProps) {
                                                 >
                                                     View
                                                 </Link>
-                                                {role.name !== 'admin' && role.name !== 'user' && (
+                                                {role.name !== 'superadmin' && role.name !== 'user' && (
                                                     <>
                                                         <Link
                                                             href={route('admin.roles.edit', role.id)}

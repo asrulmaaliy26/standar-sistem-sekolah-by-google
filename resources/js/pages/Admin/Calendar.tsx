@@ -2,182 +2,19 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface CalendarEventFile {
-    id: number;
-    name: string;
-    url: string;
-    description?: string;
-}
-
-interface CalendarEvent {
-    id: number;
-    title: string;
-    description?: string;
-    tempat?: string;
-    start: string;
-    end: string;
-    realStart: string;
-    realEnd: string;
-    color: string;
-    status: string;
-    created_by: string;
-    files?: CalendarEventFile[];
-}
-
-interface ModalState {
-    open: boolean;
-    mode: 'add' | 'edit' | 'view';
-    event: CalendarEvent | null;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-const MONTH_NAMES = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-];
-const DOW_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-const GRID_ROWS = 6;
-const GRID_COLS = 7;
-
-const COLOR_PALETTE = [
-    '#4285F4', '#0F9D58', '#DB4437', '#F4B400',
-    '#00ACC1', '#8E24AA', '#7986CB', '#F4511E',
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const pad = (n: number) => String(n).padStart(2, '0');
-
-function startOfDay(d: Date): Date {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x;
-}
-
-function addDays(date: Date, days: number): Date {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    return d;
-}
-
-function formatDateTimeLocal(dateStr: string): string {
-    if (!dateStr) return '';
-    let d: Date;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        d = new Date(dateStr + 'T00:00:00');
-    } else {
-        d = new Date(dateStr);
-    }
-    if (isNaN(d.getTime())) return '';
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function nowLocalString(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-}
-
-function buildGoogleCalUrl(title: string, desc: string, location: string, start: Date, end: Date): string {
-    const fmt = (d: Date) =>
-        d.getUTCFullYear() +
-        pad(d.getUTCMonth() + 1) +
-        pad(d.getUTCDate()) + 'T' +
-        pad(d.getUTCHours()) +
-        pad(d.getUTCMinutes()) +
-        pad(d.getUTCSeconds()) + 'Z';
-
-    const params = new URLSearchParams({
-        action: 'TEMPLATE',
-        text: title,
-        dates: `${fmt(start)}/${fmt(end)}`,
-        details: desc || '',
-        location: location || '',
-    });
-
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-}
-
-// ─── Swal-like Notification ───────────────────────────────────────────────────
-interface ToastProps { message: string; type: 'success' | 'error' | 'info'; }
-
-function Toast({ message, type, onClose }: ToastProps & { onClose: () => void }) {
-    useEffect(() => {
-        const t = setTimeout(onClose, 3200);
-        return () => clearTimeout(t);
-    }, [onClose]);
-
-    const bgClass = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
-    return (
-        <div className={`fixed top-5 right-5 z-[99999] ${bgClass} text-white rounded-lg px-5 py-3 font-medium shadow-lg animate-in slide-in-from-top-4 fade-in duration-300 min-w-[220px] max-w-[340px]`}>
-            {message}
-        </div>
-    );
-}
-
-// ─── Calendar Grid ────────────────────────────────────────────────────────────
-interface Strip {
-    ev: CalendarEvent;
-    row: number;
-    colStart: number;
-    widthDays: number;
-    tier: number;
-}
-
-function buildStrips(events: CalendarEvent[], gridStart: Date): Strip[] {
-    const strips: Strip[] = [];
-    const rowTiers: { tier: number; start: number; end: number }[][] =
-        Array.from({ length: GRID_ROWS }, () => []);
-
-    const sorted = [...events].sort((a, b) => {
-        const aS = new Date(a.realStart || a.start).getTime();
-        const bS = new Date(b.realStart || b.start).getTime();
-        if (aS !== bS) return aS - bS;
-        return new Date(b.realEnd || b.end).getTime() - new Date(a.realEnd || a.end).getTime();
-    });
-
-    sorted.forEach(ev => {
-        const startDay = startOfDay(new Date(ev.realStart || ev.start));
-        const endExclDay = startOfDay(new Date(ev.realEnd || ev.end));
-
-        const msDay = 86400000;
-        const startIdx = Math.floor((startDay.getTime() - gridStart.getTime()) / msDay);
-        const endExclIdx = Math.floor((endExclDay.getTime() - gridStart.getTime()) / msDay);
-
-        const spanStart = Math.max(0, startIdx);
-        const spanEnd = Math.min(GRID_ROWS * GRID_COLS, Math.max(endExclIdx, startIdx + 1));
-
-        if (spanEnd <= spanStart) return;
-
-        let current = spanStart;
-        while (current < spanEnd) {
-            const row = Math.floor(current / GRID_COLS);
-            if (row >= GRID_ROWS) break;
-            const rowEnd = (row + 1) * GRID_COLS;
-            const pieceStart = current;
-            const pieceEnd = Math.min(spanEnd, rowEnd);
-            const colStart = pieceStart % GRID_COLS;
-            const widthDays = pieceEnd - pieceStart;
-
-            let tier = 0;
-            while (rowTiers[row].some(item =>
-                item.tier === tier &&
-                !(pieceEnd <= item.start || pieceStart >= item.end)
-            )) { tier++; }
-
-            rowTiers[row].push({ tier, start: pieceStart, end: pieceEnd });
-            strips.push({ ev, row, colStart, widthDays, tier });
-            current = pieceEnd;
-        }
-    });
-
-    return strips;
-}
+import { CalendarEvent, ModalState } from '@/types/calendar';
+import { MONTH_NAMES, DOW_NAMES, GRID_ROWS, GRID_COLS, COLOR_PALETTE, startOfDay, addDays, formatDateTimeLocal, nowLocalString, buildGoogleCalUrl, buildStrips, pad } from '@/lib/calendar-utils';
+import Toast, { ToastProps } from '@/components/Toast';
+import CalendarModal from '@/components/Calendar/CalendarModal';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function AdminCalendar() {
-    const { auth } = usePage<{ auth: { user: { name: string; roles?: { name: string }[] } } }>().props;
+    const { auth } = usePage<{ auth: { user: { name: string; roles?: string[]; is_admin?: boolean } } }>().props;
     const user = auth?.user;
-    const isAdmin = user?.roles?.some(r => r.name === 'admin' || r.name === 'superadmin') ?? false;
+    const isAdmin = user?.is_admin || (user?.roles?.some(r => r === 'superadmin') ?? false);
+    const isMurid = user?.roles?.includes('murid') ?? false;
+    const isGuru = user?.roles?.includes('guru') ?? false;
+    const canSubmit = isAdmin || isGuru;
 
     // ── Calendar state ──
     const [viewDate, setViewDate] = useState(() => {
@@ -227,7 +64,7 @@ export default function AdminCalendar() {
         setLoading(true);
         try {
             const res = await fetch(
-                `/admin/calendar/events?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`,
+                `/calendar/events?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`,
                 { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
             );
             const data: CalendarEvent[] = await res.json();
@@ -244,7 +81,7 @@ export default function AdminCalendar() {
         const future = addDays(today, 30);
         try {
             const res = await fetch(
-                `/admin/calendar/events?start=${encodeURIComponent(today.toISOString())}&end=${encodeURIComponent(future.toISOString())}`,
+                `/calendar/events?start=${encodeURIComponent(today.toISOString())}&end=${encodeURIComponent(future.toISOString())}`,
                 { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
             );
             const data: CalendarEvent[] = await res.json();
@@ -340,7 +177,7 @@ export default function AdminCalendar() {
         };
 
         try {
-            const res = await fetch(`/admin/calendar/files/${fileId}`, { method: 'DELETE', headers });
+            const res = await fetch(`/calendar/files/${fileId}`, { method: 'DELETE', headers });
             const data = await res.json();
             if (data.status === 'success') {
                 showToast(data.message, 'success');
@@ -387,10 +224,10 @@ export default function AdminCalendar() {
         try {
             let res: Response;
             if (modal.mode === 'add') {
-                res = await fetch('/admin/calendar/events', { method: 'POST', headers, body: formData });
+                res = await fetch('/calendar/events', { method: 'POST', headers, body: formData });
             } else {
                 formData.append('_method', 'PUT'); // Laravel method spoofing for PUT with FormData
-                res = await fetch(`/admin/calendar/events/${modal.event!.id}`, { method: 'POST', headers, body: formData });
+                res = await fetch(`/calendar/events/${modal.event!.id}`, { method: 'POST', headers, body: formData });
             }
             const data = await res.json();
             if (data.status === 'success') {
@@ -419,7 +256,7 @@ export default function AdminCalendar() {
         };
 
         try {
-            const res = await fetch(`/admin/calendar/events/${modal.event.id}`, { method: 'DELETE', headers });
+            const res = await fetch(`/calendar/events/${modal.event.id}`, { method: 'DELETE', headers });
             const data = await res.json();
             if (data.status === 'success') {
                 showToast(data.message, 'success');
@@ -453,7 +290,7 @@ export default function AdminCalendar() {
     return (
         <AppLayout breadcrumbs={[
             { title: 'Admin Dashboard', href: '/admin/dashboard' },
-            { title: 'Kalender Kegiatan', href: '/admin/calendar' },
+            { title: 'Kalender Kegiatan', href: '/calendar' },
         ]}>
             <Head title="Kalender Kegiatan" />
             {toast && <Toast {...toast} onClose={() => setToast(null)} />}
@@ -493,25 +330,27 @@ export default function AdminCalendar() {
                     {/* ── Left Sidebar ── */}
                     <div className="hidden lg:flex flex-col w-64 shrink-0 gap-6 overflow-y-auto pr-2 pb-6">
                         {/* Create Button */}
-                        <button
-                            onClick={openAddModal}
-                            className="flex items-center gap-3 px-5 py-3 bg-card border border-border text-foreground rounded-full hover:bg-muted hover:shadow-md transition-all shadow-sm font-medium w-max group"
-                        >
-                            <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" className="group-hover:scale-105 transition-transform">
-                                <path d="M16 16V6H20V16H30V20H20V30H16V20H6V16H16Z" fill="#EA4335" />
-                                <path d="M16 16V6H20V16H30V20H20V30H16V20H6V16H16Z" fill="#4285F4" clipPath="url(#clip0_0_1)" />
-                                <path d="M16 16V6H20V16H30V20H20V30H16V20H6V16H16Z" fill="#FBBC04" clipPath="url(#clip1_0_1)" />
-                                <path d="M16 16V6H20V16H30V20H20V30H16V20H6V16H16Z" fill="#34A853" clipPath="url(#clip2_0_1)" />
-                                <defs>
-                                    <clipPath id="clip0_0_1"><rect width="14" height="24" fill="white" transform="translate(16 6)" /></clipPath>
-                                    <clipPath id="clip1_0_1"><rect width="24" height="14" fill="white" transform="translate(6 16)" /></clipPath>
-                                    <clipPath id="clip2_0_1"><rect width="14" height="14" fill="white" transform="translate(6 20)" /></clipPath>
-                                </defs>
-                            </svg>
-                            <span className="text-sm font-semibold tracking-wide pr-2">
-                                {isAdmin ? 'Buat' : 'Ajukan'}
-                            </span>
-                        </button>
+                        {canSubmit && (
+                            <button
+                                onClick={openAddModal}
+                                className="flex items-center gap-3 px-5 py-3 bg-card border border-border text-foreground rounded-full hover:bg-muted hover:shadow-md transition-all shadow-sm font-medium w-max group"
+                            >
+                                <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" className="group-hover:scale-105 transition-transform">
+                                    <path d="M16 16V6H20V16H30V20H20V30H16V20H6V16H16Z" fill="#EA4335" />
+                                    <path d="M16 16V6H20V16H30V20H20V30H16V20H6V16H16Z" fill="#4285F4" clipPath="url(#clip0_0_1)" />
+                                    <path d="M16 16V6H20V16H30V20H20V30H16V20H6V16H16Z" fill="#FBBC04" clipPath="url(#clip1_0_1)" />
+                                    <path d="M16 16V6H20V16H30V20H20V30H16V20H6V16H16Z" fill="#34A853" clipPath="url(#clip2_0_1)" />
+                                    <defs>
+                                        <clipPath id="clip0_0_1"><rect width="14" height="24" fill="white" transform="translate(16 6)" /></clipPath>
+                                        <clipPath id="clip1_0_1"><rect width="24" height="14" fill="white" transform="translate(6 16)" /></clipPath>
+                                        <clipPath id="clip2_0_1"><rect width="14" height="14" fill="white" transform="translate(6 20)" /></clipPath>
+                                    </defs>
+                                </svg>
+                                <span className="text-sm font-semibold tracking-wide pr-2">
+                                    {isAdmin ? 'Buat' : 'Ajukan'}
+                                </span>
+                            </button>
+                        )}
 
                         {/* Mini Calendar or Upcoming Events */}
                         <div className="mt-2">
@@ -569,8 +408,8 @@ export default function AdminCalendar() {
                             {cells.map((cell, i) => (
                                 <div
                                     key={i}
-                                    onClick={() => openAddModal(cell.date)}
-                                    className={`p-1.5 cursor-pointer transition-colors hover:bg-muted/40 ${!cell.inMonth ? 'bg-muted/30' : 'bg-card'}`}
+                                    onClick={() => canSubmit && openAddModal(cell.date)}
+                                    className={`p-1.5 ${canSubmit ? 'cursor-pointer hover:bg-muted/40' : ''} transition-colors ${!cell.inMonth ? 'bg-muted/30' : 'bg-card'}`}
                                 >
                                     <div className="flex justify-center mt-1">
                                         <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-medium ${cell.isToday ? 'bg-primary text-primary-foreground' : (cell.inMonth ? 'text-foreground' : 'text-muted-foreground')}`}>
@@ -612,271 +451,27 @@ export default function AdminCalendar() {
             </div>
 
             {/* ─── Modal (Dialog) ─── */}
-            {modal.open && (
-                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeModal}>
-                    <div
-                        className="w-full max-w-2xl bg-card rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between px-6 py-4 bg-muted/30">
-                            <h2 className="text-xl font-normal text-foreground">
-                                {modal.mode === 'add' ? (isAdmin ? 'Tambah Kegiatan' : 'Ajukan Kegiatan') : modal.mode === 'edit' ? 'Edit Kegiatan' : 'Detail Kegiatan'}
-                            </h2>
-                            <button type="button" onClick={closeModal} className="p-2 -mr-2 rounded-full hover:bg-muted text-muted-foreground transition-colors">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                        </div>
-
-                        {/* Modal Body */}
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-6 overflow-y-auto space-y-6">
-                                <div>
-                                    <input
-                                        type="text"
-                                        required
-                                        disabled={modal.mode === 'view'}
-                                        value={formTitle}
-                                        onChange={e => setFormTitle(e.target.value)}
-                                        className="w-full text-2xl px-0 py-2 bg-transparent border-0 border-b-2 border-transparent focus:border-primary text-foreground placeholder:text-muted-foreground/60 focus:ring-0 disabled:opacity-90 disabled:bg-transparent"
-                                        placeholder="Tambahkan judul"
-                                        autoFocus={modal.mode !== 'view'}
-                                    />
-                                </div>
-
-                                <div className="flex items-start gap-4">
-                                    <div className="w-5 pt-2 text-muted-foreground flex justify-center">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                    </div>
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-medium text-muted-foreground mb-1">Mulai</label>
-                                            <input
-                                                type="datetime-local"
-                                                required
-                                                disabled={modal.mode === 'view'}
-                                                value={formStart}
-                                                onChange={e => setFormStart(e.target.value)}
-                                                className="w-full px-3 py-2 bg-muted/50 border-0 rounded-md text-foreground focus:ring-2 focus:ring-primary/20 disabled:opacity-75"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-muted-foreground mb-1">Selesai</label>
-                                            <input
-                                                type="datetime-local"
-                                                required
-                                                disabled={modal.mode === 'view'}
-                                                value={formEnd}
-                                                onChange={e => setFormEnd(e.target.value)}
-                                                className="w-full px-3 py-2 bg-muted/50 border-0 rounded-md text-foreground focus:ring-2 focus:ring-primary/20 disabled:opacity-75"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start gap-4">
-                                    <div className="w-5 pt-2 text-muted-foreground flex justify-center">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                                    </div>
-                                    <div className="flex-1">
-                                        <input
-                                            type="text"
-                                            disabled={modal.mode === 'view'}
-                                            value={formLocation}
-                                            onChange={e => setFormLocation(e.target.value)}
-                                            className="w-full px-3 py-2 bg-muted/50 border-0 rounded-md text-foreground focus:ring-2 focus:ring-primary/20 disabled:opacity-75"
-                                            placeholder="Tambahkan lokasi"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start gap-4">
-                                    <div className="w-5 pt-2 text-muted-foreground flex justify-center">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
-                                    </div>
-                                    <div className="flex-1">
-                                        <textarea
-                                            rows={3}
-                                            disabled={modal.mode === 'view'}
-                                            value={formDesc}
-                                            onChange={e => setFormDesc(e.target.value)}
-                                            className="w-full px-3 py-2 bg-muted/50 border-0 rounded-md text-foreground focus:ring-2 focus:ring-primary/20 disabled:opacity-75 resize-y"
-                                            placeholder="Tambahkan deskripsi"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* FILE UPLOADS SECTION */}
-                                <div className="flex items-start gap-4">
-                                    <div className="w-5 pt-2 text-muted-foreground flex justify-center">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-                                    </div>
-                                    <div className="flex-1">
-                                        {/* Existing Files */}
-                                        {modal.event?.files && modal.event.files.length > 0 && (
-                                            <div className="mb-4 space-y-2">
-                                                <h3 className="text-sm font-semibold text-foreground">File Terlampir</h3>
-                                                {modal.event.files.map(file => (
-                                                    <div key={file.id} className="flex items-start gap-3 p-3 bg-muted/30 border border-border rounded-lg group">
-                                                        <a href={file.url} target="_blank" rel="noreferrer" className="flex items-center justify-center p-2 bg-primary/10 rounded-md text-primary shrink-0 transition-colors hover:bg-primary/20">
-                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                                                        </a>
-                                                        <div className="flex-1 min-w-0">
-                                                            <a href={file.url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline truncate block">
-                                                                {file.name}
-                                                            </a>
-                                                            {file.description && <p className="text-xs text-muted-foreground mt-1 break-words">{file.description}</p>}
-                                                        </div>
-                                                        {isAdmin && modal.mode === 'edit' && (
-                                                            <button type="button" onClick={() => deleteExistingFile(file.id)} className="p-1.5 text-destructive bg-destructive/10 hover:bg-destructive/20 rounded-md transition-colors opacity-0 group-hover:opacity-100 shrink-0">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* New File Uploads */}
-                                        {modal.mode !== 'view' && (
-                                            <div className="space-y-3">
-                                                <h3 className="text-sm font-semibold text-foreground">Lampirkan File Baru</h3>
-                                                <div className="flex items-center gap-2">
-                                                    <input 
-                                                        type="file" 
-                                                        multiple 
-                                                        ref={fileInputRef}
-                                                        onChange={handleFileSelect}
-                                                        className="hidden" 
-                                                        id="file-upload" 
-                                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
-                                                    />
-                                                    <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-foreground bg-muted hover:bg-muted/80 border border-border rounded-md transition-colors">
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                                        Pilih File
-                                                    </label>
-                                                    <span className="text-xs text-muted-foreground">Max 10MB per file</span>
-                                                </div>
-
-                                                {formFiles.length > 0 && (
-                                                    <div className="space-y-3 mt-3">
-                                                        {formFiles.map((file, index) => (
-                                                            <div key={index} className="flex flex-col sm:flex-row gap-3 p-3 bg-muted/20 border border-border rounded-lg relative">
-                                                                <button type="button" onClick={() => handleRemoveNewFile(index)} className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full shadow-sm hover:scale-110 transition-transform">
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                                </button>
-                                                                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                                    <span className="text-sm font-medium truncate text-foreground flex items-center gap-2">
-                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground shrink-0"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-                                                                        <span className="truncate">{file.name}</span>
-                                                                    </span>
-                                                                    <span className="text-[10px] text-muted-foreground ml-6">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                                                                </div>
-                                                                <div className="flex-[2]">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={formFileDescriptions[index]}
-                                                                        onChange={e => updateFileDescription(index, e.target.value)}
-                                                                        placeholder="Deskripsi file (opsional)"
-                                                                        className="w-full px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:ring-1 focus:ring-primary"
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {modal.mode !== 'view' && (
-                                    <div className="flex items-start gap-4 pt-2">
-                                        <div className="w-5 pt-2 text-muted-foreground flex justify-center">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
-                                        </div>
-                                        <div className="flex-1 flex flex-wrap gap-3">
-                                            {COLOR_PALETTE.map(c => (
-                                                <button
-                                                    key={c}
-                                                    type="button"
-                                                    onClick={() => setFormColor(c)}
-                                                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${formColor === c ? 'ring-2 ring-offset-2 ring-offset-card ring-primary' : ''}`}
-                                                    style={{ backgroundColor: c }}
-                                                >
-                                                    {formColor === c && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {modal.event && (
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-5 text-muted-foreground flex justify-center">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                        </div>
-                                        <div className="flex-1 text-xs text-muted-foreground pt-0.5">
-                                            Dibuat oleh: <span className="font-medium text-foreground">{modal.event.created_by}</span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Modal Footer */}
-                            <div className="flex flex-col-reverse sm:flex-row items-center justify-between px-6 py-4 gap-4 bg-muted/10 border-t border-border">
-                                <div>
-                                    {/* Google Calendar Link - Available when there's an event (view/edit mode) */}
-                                    {modal.event && (
-                                        <a
-                                            href={buildGoogleCalUrl(
-                                                modal.event.title,
-                                                modal.event.description ?? '',
-                                                modal.event.tempat ?? '',
-                                                new Date(modal.event.realStart || modal.event.start),
-                                                new Date(modal.event.realEnd || modal.event.end),
-                                            )}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 rounded-md transition-colors"
-                                        >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                                            Tambah ke Google Calendar
-                                        </a>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                                    {isAdmin && modal.mode === 'edit' && (
-                                        <button
-                                            type="button"
-                                            onClick={handleDelete}
-                                            className="px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                                        >
-                                            Hapus
-                                        </button>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={closeModal}
-                                        className="px-4 py-2 text-sm font-medium text-foreground hover:bg-muted rounded-md transition-colors"
-                                    >
-                                        Batal
-                                    </button>
-                                    {modal.mode !== 'view' && (
-                                        <button
-                                            type="submit"
-                                            disabled={formSaving}
-                                            className="px-6 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-md hover:bg-primary/90 transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
-                                        >
-                                            {formSaving ? 'Menyimpan...' : 'Simpan'}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <CalendarModal
+                modal={modal}
+                isAdmin={isAdmin}
+                closeModal={closeModal}
+                handleSubmit={handleSubmit}
+                handleDelete={handleDelete}
+                deleteExistingFile={deleteExistingFile}
+                formTitle={formTitle} setFormTitle={setFormTitle}
+                formStart={formStart} setFormStart={setFormStart}
+                formEnd={formEnd} setFormEnd={setFormEnd}
+                formLocation={formLocation} setFormLocation={setFormLocation}
+                formDesc={formDesc} setFormDesc={setFormDesc}
+                formColor={formColor} setFormColor={setFormColor}
+                formFiles={formFiles}
+                fileInputRef={fileInputRef}
+                handleFileSelect={handleFileSelect}
+                handleRemoveNewFile={handleRemoveNewFile}
+                formFileDescriptions={formFileDescriptions}
+                updateFileDescription={updateFileDescription}
+                formSaving={formSaving}
+            />
         </AppLayout>
     );
 }

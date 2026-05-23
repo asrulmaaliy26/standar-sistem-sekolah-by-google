@@ -1,24 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 
-interface CalendarEventFile {
-    id: number;
-    name: string;
-    url: string;
-}
-
-interface CalendarEvent {
-    id: number;
-    title: string;
-    description: string | null;
-    location: string | null;
-    start_at: string;
-    end_at: string;
-    status: string;
-    created_by: string;
-    files: CalendarEventFile[];
-}
+import { CalendarEvent } from '@/types/calendar';
+import { formatDateTimeLocal } from '@/lib/calendar-utils';
+import Toast, { ToastProps } from '@/components/Toast';
+import CalendarRecapModal from '@/components/Calendar/CalendarRecapModal';
 
 interface Props {
     events: CalendarEvent[];
@@ -26,30 +13,22 @@ interface Props {
     currentYear: string | null;
 }
 
-// ─── Swal-like Notification ───────────────────────────────────────────────────
-interface ToastProps { message: string; type: 'success' | 'error' | 'info'; }
-
-function Toast({ message, type, onClose }: ToastProps & { onClose: () => void }) {
-    useEffect(() => {
-        const t = setTimeout(onClose, 3200);
-        return () => clearTimeout(t);
-    }, [onClose]);
-
-    const bgClass = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
-    return (
-        <div className={`fixed top-5 right-5 z-[99999] ${bgClass} text-white rounded-lg px-5 py-3 font-medium shadow-lg animate-in slide-in-from-top-4 fade-in duration-300 min-w-[220px] max-w-[340px]`}>
-            {message}
-        </div>
-    );
-}
-
 export default function CalendarRecap({ events, availableYears, currentYear }: Props) {
+    const { auth } = usePage<{ auth: { user: { name: string; roles?: string[]; is_admin?: boolean } } }>().props;
+    const user = auth?.user;
+    const isAdmin = user?.is_admin || (user?.roles?.some(r => r === 'superadmin') ?? false);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [toast, setToast] = useState<ToastProps | null>(null);
 
     // Upload Modal State
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+    const [formTitle, setFormTitle] = useState('');
+    const [formDesc, setFormDesc] = useState('');
+    const [formLocation, setFormLocation] = useState('');
+    const [formStart, setFormStart] = useState('');
+    const [formEnd, setFormEnd] = useState('');
     const [formFiles, setFormFiles] = useState<File[]>([]);
     const [formFileDescriptions, setFormFileDescriptions] = useState<string[]>([]);
     const [uploading, setUploading] = useState(false);
@@ -59,7 +38,7 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
         setToast({ message, type });
 
     const handleYearFilter = (year: string | null) => {
-        router.get('/admin/calendar/recap', year ? { year } : {}, { preserveState: true, preserveScroll: true });
+        router.get('/calendar/recap', year ? { year } : {}, { preserveState: true, preserveScroll: true });
     };
 
     const filteredEvents = events.filter(ev => 
@@ -67,9 +46,14 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
         (ev.location && ev.location.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
-    // File Upload Helpers
-    const openUploadModal = (ev: CalendarEvent) => {
+    // Edit Helpers
+    const openEditModal = (ev: CalendarEvent) => {
         setSelectedEvent(ev);
+        setFormTitle(ev.title);
+        setFormDesc(ev.description ?? '');
+        setFormLocation(ev.location ?? '');
+        setFormStart(formatDateTimeLocal(ev.start_at));
+        setFormEnd(formatDateTimeLocal(ev.end_at));
         setFormFiles([]);
         setFormFileDescriptions([]);
         setUploadModalOpen(true);
@@ -105,17 +89,24 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
 
     const handleUploadSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedEvent || formFiles.length === 0) return;
+        if (!selectedEvent) return;
 
         setUploading(true);
         const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('title', formTitle);
+        formData.append('description', formDesc);
+        formData.append('location', formLocation);
+        formData.append('start', formStart);
+        formData.append('end', formEnd);
+
         formFiles.forEach((file, index) => {
             formData.append('files[]', file);
             formData.append('file_descriptions[]', formFileDescriptions[index] || '');
         });
 
         try {
-            const res = await fetch(`/admin/calendar/events/${selectedEvent.id}/files`, {
+            const res = await fetch(`/calendar/events/${selectedEvent.id}`, {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': getCsrfToken(),
@@ -130,7 +121,7 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
                 closeUploadModal();
                 router.reload({ only: ['events'], preserveScroll: true });
             } else {
-                showToast(data.message ?? 'Gagal mengunggah file.', 'error');
+                showToast(data.message ?? 'Gagal menyimpan perubahan.', 'error');
             }
         } catch {
             showToast('Terjadi kesalahan koneksi.', 'error');
@@ -139,11 +130,37 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
         }
     };
 
+    const deleteExistingFile = async (fileId: number) => {
+        if (!window.confirm('Hapus file ini secara permanen?')) return;
+        
+        const headers: Record<string, string> = {
+            'X-CSRF-TOKEN': getCsrfToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+        };
+
+        try {
+            const res = await fetch(`/calendar/files/${fileId}`, { method: 'DELETE', headers });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(data.message, 'success');
+                if (selectedEvent && selectedEvent.files) {
+                    const updatedFiles = selectedEvent.files.filter(f => f.id !== fileId);
+                    setSelectedEvent({ ...selectedEvent, files: updatedFiles });
+                }
+                router.reload({ only: ['events'], preserveScroll: true });
+            } else {
+                showToast(data.message ?? 'Gagal menghapus file.', 'error');
+            }
+        } catch {
+            showToast('Terjadi kesalahan koneksi saat menghapus file.', 'error');
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={[
             { title: 'Admin Dashboard', href: '/admin/dashboard' },
-            { title: 'Kalender Kegiatan', href: '/admin/calendar' },
-            { title: 'Rekapan Kegiatan', href: '/admin/calendar/recap' },
+            { title: 'Kalender Kegiatan', href: '/calendar' },
+            { title: 'Rekapan Kegiatan', href: '/calendar/recap' },
         ]}>
             <Head title="Rekapan Kegiatan" />
             {toast && <Toast {...toast} onClose={() => setToast(null)} />}
@@ -158,7 +175,7 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
                         <p className="text-muted-foreground mt-1 text-sm">Daftar seluruh kegiatan dan file terlampir yang pernah diajukan atau dibuat.</p>
                     </div>
                     <Link
-                        href="/admin/calendar"
+                        href="/calendar"
                         className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-md hover:bg-muted transition-colors shadow-sm shrink-0"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -263,7 +280,7 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <Link
-                                                        href={`/admin/calendar?date=${ev.start_at.split(' ')[0]}`}
+                                                        href={`/calendar?date=${ev.start_at.split(' ')[0]}`}
                                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-primary/10 border border-primary/20 rounded-md hover:bg-primary/20 transition-colors"
                                                         title="Lihat jadwal ini di Kalender"
                                                     >
@@ -271,12 +288,12 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
                                                         Kalender
                                                     </Link>
                                                     <button
-                                                        onClick={() => openUploadModal(ev)}
+                                                        onClick={() => openEditModal(ev)}
                                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground bg-muted border border-border rounded-md hover:bg-muted/80 transition-colors"
-                                                        title="Upload File Tambahan"
+                                                        title="Edit Kegiatan & Upload File"
                                                     >
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                                        Upload
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                                        Edit
                                                     </button>
                                                 </div>
                                             </td>
@@ -296,82 +313,26 @@ export default function CalendarRecap({ events, availableYears, currentYear }: P
             </div>
 
             {/* Upload Modal */}
-            {uploadModalOpen && selectedEvent && (
-                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeUploadModal}>
-                    <div
-                        className="w-full max-w-lg bg-card rounded-xl shadow-2xl overflow-hidden"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between px-6 py-4 bg-muted/30 border-b border-border">
-                            <h2 className="text-lg font-medium text-foreground">Upload File Tambahan</h2>
-                            <button type="button" onClick={closeUploadModal} className="p-1.5 rounded-full hover:bg-muted text-muted-foreground transition-colors">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleUploadSubmit} className="flex flex-col p-6">
-                            <div className="mb-6">
-                                <p className="text-sm font-medium text-foreground mb-1">{selectedEvent.title}</p>
-                                <p className="text-xs text-muted-foreground">{new Date(selectedEvent.start_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                            </div>
-
-                            <div className="space-y-3 mb-6">
-                                <div className="flex items-center gap-2">
-                                    <input 
-                                        type="file" 
-                                        multiple 
-                                        ref={fileInputRef}
-                                        onChange={handleFileSelect}
-                                        className="hidden" 
-                                        id="recap-file-upload" 
-                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
-                                    />
-                                    <label htmlFor="recap-file-upload" className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-foreground bg-muted hover:bg-muted/80 border border-border rounded-md transition-colors w-full border-dashed">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                        Pilih File (Max 10MB)
-                                    </label>
-                                </div>
-
-                                {formFiles.length > 0 && (
-                                    <div className="space-y-3 mt-4 max-h-48 overflow-y-auto pr-1">
-                                        {formFiles.map((file, index) => (
-                                            <div key={index} className="flex flex-col gap-2 p-3 bg-muted/20 border border-border rounded-lg relative">
-                                                <button type="button" onClick={() => handleRemoveNewFile(index)} className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full shadow-sm hover:scale-110 transition-transform">
-                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                </button>
-                                                <div className="flex items-center gap-2">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground shrink-0"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-                                                    <span className="text-sm font-medium truncate text-foreground flex-1">{file.name}</span>
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    value={formFileDescriptions[index]}
-                                                    onChange={e => updateFileDescription(index, e.target.value)}
-                                                    placeholder="Deskripsi file (opsional)"
-                                                    className="w-full px-3 py-1.5 text-xs bg-background border border-border rounded-md focus:ring-1 focus:ring-primary"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex justify-end gap-3 mt-auto">
-                                <button type="button" onClick={closeUploadModal} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">
-                                    Batal
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={uploading || formFiles.length === 0}
-                                    className="px-6 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-md hover:bg-primary/90 transition-colors disabled:opacity-70 shadow-sm"
-                                >
-                                    {uploading ? 'Mengunggah...' : 'Upload'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <CalendarRecapModal
+                open={uploadModalOpen}
+                isAdmin={isAdmin}
+                selectedEvent={selectedEvent}
+                closeUploadModal={closeUploadModal}
+                handleUploadSubmit={handleUploadSubmit}
+                deleteExistingFile={deleteExistingFile}
+                formTitle={formTitle} setFormTitle={setFormTitle}
+                formStart={formStart} setFormStart={setFormStart}
+                formEnd={formEnd} setFormEnd={setFormEnd}
+                formLocation={formLocation} setFormLocation={setFormLocation}
+                formDesc={formDesc} setFormDesc={setFormDesc}
+                formFiles={formFiles}
+                fileInputRef={fileInputRef}
+                handleFileSelect={handleFileSelect}
+                handleRemoveNewFile={handleRemoveNewFile}
+                formFileDescriptions={formFileDescriptions}
+                updateFileDescription={updateFileDescription}
+                uploading={uploading}
+            />
         </AppLayout>
     );
 }

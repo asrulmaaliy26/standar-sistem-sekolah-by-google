@@ -11,39 +11,59 @@ use Throwable;
 
 class GoogleAuthController extends Controller
 {
-    public function redirect()
+    public function redirect(Request $request)
     {
-        return Socialite::driver('google')->redirect();
+        $driver = Socialite::driver('google')
+            ->scopes([
+                'openid',
+                'profile',
+                'email',
+            ]);
+
+        // Hanya tambahkan scope Drive dan offline access JIKA diminta (oleh admin)
+        if ($request->query('with_drive') == '1') {
+            $driver->scopes(['https://www.googleapis.com/auth/drive.file'])
+                   ->with(['access_type' => 'offline', 'prompt' => 'consent']);
+        }
+
+        return $driver->redirect();
     }
 
     public function callback()
     {
         try {
-            // Get the user information from Google
-            $user = Socialite::driver('google')->user();
+            $googleUser = Socialite::driver('google')->user();
         } catch (Throwable $e) {
-            return redirect('/')->with('error', 'Google authentication failed.');
+            return redirect()->route('login')->with('error', 'Login dengan Google gagal. Silakan coba lagi.');
         }
 
-        // Check if the user already exists in the database
-        $existingUser = User::where('email', $user->email)->first();
+        // Cari atau buat user berdasarkan email
+        $user = User::where('email', $googleUser->email)->first();
 
-        if ($existingUser) {
-            // Log the user in if they already exist
-            Auth::login($existingUser);
+        if ($user) {
+            // Update token setiap login agar selalu fresh
+            $user->update([
+                'google_id'              => $googleUser->id,
+                'google_token'           => $googleUser->token,
+                'google_refresh_token'   => $googleUser->refreshToken ?? $user->google_refresh_token,
+                'google_token_expires_at'=> now()->addSeconds($googleUser->expiresIn ?? 3600),
+                'email_verified_at'      => $user->email_verified_at ?? now(),
+            ]);
         } else {
-            // Otherwise, create a new user and log them in
-            $newUser = new User();
-            $newUser->name = $user->name;
-            $newUser->email = $user->email;
-            $newUser->password = bcrypt(Str::random(16)); // Generate a random password
-            $newUser->email_verified_at = now(); // Mark email as verified
-            $newUser->save();
-            // Log the new user in
-            Auth::login($newUser);
+            $user = User::create([
+                'name'                   => $googleUser->name,
+                'email'                  => $googleUser->email,
+                'password'               => bcrypt(Str::random(16)),
+                'google_id'              => $googleUser->id,
+                'google_token'           => $googleUser->token,
+                'google_refresh_token'   => $googleUser->refreshToken,
+                'google_token_expires_at'=> now()->addSeconds($googleUser->expiresIn ?? 3600),
+                'email_verified_at'      => now(),
+            ]);
         }
 
-        // Redirect the user to the dashboard or any other secure page
+        Auth::login($user);
+
         return redirect('/dashboard');
     }
 }

@@ -65,7 +65,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const isAdmin =
         user?.is_admin === true ||
         user?.isAdmin === true ||
-        (Array.isArray(userRoles) ? userRoles.some((r: unknown) => String(r).toLowerCase() === 'admin') : false);
+        (Array.isArray(userRoles) ? userRoles.some((r: unknown) => String(r).toLowerCase() === 'superadmin') : false);
     return (
         <>
             <div className="border-sidebar-border/80 border-b">

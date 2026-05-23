@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Head, Link, useForm } from '@inertiajs/react'
+import { Head, Link, useForm, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 
 interface User {
@@ -116,7 +116,7 @@ export default function UsersIndex({ users, roles, jabatan }: UsersIndexProps) {
                                                 {user.roles.map((role) => (
                                                     <span
                                                         key={role}
-                                                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${role === 'admin'
+                                                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${role === 'superadmin'
                                                                 ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                                                                 : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                                                             }`}
@@ -179,6 +179,16 @@ export default function UsersIndex({ users, roles, jabatan }: UsersIndexProps) {
                                                 >
                                                     View
                                                 </Link>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm('Yakin ingin menghapus user ini?')) {
+                                                            router.delete(route('admin.users.destroy', user.id))
+                                                        }
+                                                    }}
+                                                    className="text-red-600 hover:text-red-800"
+                                                >
+                                                    Delete
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>

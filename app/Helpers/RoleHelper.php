@@ -25,7 +25,7 @@ class RoleHelper
             return false;
         }
 
-        $user->assignRole('admin');
+        $user->assignRole('superadmin');
         return true;
     }
 
@@ -39,7 +39,7 @@ class RoleHelper
             return false;
         }
 
-        $user->removeRole('admin');
+        $user->removeRole('superadmin');
         return true;
     }
 
@@ -49,7 +49,7 @@ class RoleHelper
     public static function getAllAdmins()
     {
         return User::whereHas('roles', function ($query) {
-            $query->where('name', 'admin');
+            $query->where('name', 'superadmin');
         })->get();
     }
 

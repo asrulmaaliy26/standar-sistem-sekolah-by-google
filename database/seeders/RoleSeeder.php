@@ -16,7 +16,7 @@ class RoleSeeder extends Seeder
     {
         // Create roles
         $adminRole = Role::firstOrCreate(
-            ['name' => 'admin'],
+            ['name' => 'superadmin'],
             ['description' => 'Administrator with full access']
         );
 
@@ -25,22 +25,35 @@ class RoleSeeder extends Seeder
             ['description' => 'Regular user']
         );
 
+        $userRole = Role::firstOrCreate(
+            ['name' => 'murid'],
+            ['description' => 'Regular murid']
+        );
+
+        $userRole = Role::firstOrCreate(
+            ['name' => 'guru'],
+            ['description' => 'Regular guru']
+        );
+
+        $adminAkademikRole = Role::firstOrCreate(
+            ['name' => 'admin akademik'],
+            ['description' => 'Admin yang mengelola data jenjang dan kelas']
+        );
+
+        $adminPersuratanRole = Role::firstOrCreate(
+            ['name' => 'admin persuratan'],
+            ['description' => 'Admin yang mengelola surat menyurat']
+        );
+
         // Assign admin role to specific email
-        $adminEmail = 'lostsaga06k@gmail.com';
+        $adminEmail = 'lpialhidayahkauman@gmail.com';
         $adminUser = User::where('email', $adminEmail)->first();
 
         if ($adminUser) {
-            $adminUser->assignRole('admin');
-            echo "\n✓ Role 'admin' assigned to {$adminEmail}\n";
+            $adminUser->assignRole('superadmin');
+            echo "\n✓ Role 'superadmin' assigned to {$adminEmail}\n";
         } else {
             echo "\n✗ User with email {$adminEmail} not found\n";
-        }
-
-        // Assign user role to test user
-        $testUser = User::where('email', 'test@example.com')->first();
-        if ($testUser) {
-            $testUser->assignRole('user');
-            echo "✓ Role 'user' assigned to test@example.com\n\n";
         }
     }
 }

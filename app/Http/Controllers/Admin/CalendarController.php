@@ -25,6 +25,11 @@ class CalendarController extends Controller
      */
     public function recap(Request $request)
     {
+        $user = Auth::user();
+        if (!$user->hasRole('superadmin')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $year = $request->query('year');
         $query = CalendarEvent::with(['creator:id,name', 'files'])->orderBy('start_at', 'desc');
 
@@ -46,7 +51,9 @@ class CalendarController extends Controller
                     return [
                         'id' => $file->id,
                         'name' => $file->file_name,
-                        'url' => asset('storage/' . $file->file_path),
+                        'url' => str_starts_with($file->file_path, 'gdrive:') 
+                            ? 'https://drive.google.com/file/d/' . substr($file->file_path, 7) . '/view' 
+                            : asset('storage/' . $file->file_path),
                     ];
                 }),
             ];
@@ -102,7 +109,9 @@ class CalendarController extends Controller
                     return [
                         'id' => $file->id,
                         'name' => $file->file_name,
-                        'url' => asset('storage/' . $file->file_path),
+                        'url' => str_starts_with($file->file_path, 'gdrive:') 
+                            ? 'https://drive.google.com/file/d/' . substr($file->file_path, 7) . '/view' 
+                            : asset('storage/' . $file->file_path),
                         'description' => $file->description,
                     ];
                 }),
@@ -130,7 +139,12 @@ class CalendarController extends Controller
         ]);
 
         $user = Auth::user();
-        $isAdmin = $user->hasRole('admin') || $user->hasRole('superadmin');
+        $isAdmin = $user->hasRole('superadmin');
+        $isGuru = $user->hasRole('guru');
+
+        if (!$isAdmin && !$isGuru) {
+            return response()->json(['status' => 'error', 'message' => 'Tidak diizinkan membuat kegiatan.'], 403);
+        }
 
         $event = CalendarEvent::create([
             'title'       => $validated['title'],
@@ -160,7 +174,7 @@ class CalendarController extends Controller
     public function update(Request $request, CalendarEvent $event)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasRole('admin') || $user->hasRole('superadmin');
+        $isAdmin = $user->hasRole('superadmin');
 
         if (!$isAdmin && $event->created_by !== $user->id) {
             return response()->json(['status' => 'error', 'message' => 'Tidak diizinkan.'], 403);
@@ -198,7 +212,7 @@ class CalendarController extends Controller
     public function uploadFiles(Request $request, CalendarEvent $event)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasRole('admin') || $user->hasRole('superadmin');
+        $isAdmin = $user->hasRole('superadmin');
 
         if (!$isAdmin && $event->created_by !== $user->id) {
             return response()->json(['status' => 'error', 'message' => 'Tidak diizinkan.'], 403);
@@ -224,14 +238,19 @@ class CalendarController extends Controller
     public function destroy(CalendarEvent $event)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasRole('admin') || $user->hasRole('superadmin');
+        $isAdmin = $user->hasRole('superadmin');
 
         if (!$isAdmin && $event->created_by !== $user->id) {
             return response()->json(['status' => 'error', 'message' => 'Tidak diizinkan.'], 403);
         }
 
         foreach ($event->files as $file) {
-            Storage::disk('public')->delete($file->file_path);
+            if (str_starts_with($file->file_path, 'gdrive:')) {
+                $driveService = new \App\Services\GoogleDriveService();
+                $driveService->deleteFile($user, substr($file->file_path, 7));
+            } else {
+                Storage::disk('public')->delete($file->file_path);
+            }
         }
 
         $event->delete();
@@ -246,13 +265,18 @@ class CalendarController extends Controller
     public function deleteFile(CalendarEventFile $file)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasRole('admin') || $user->hasRole('superadmin');
+        $isAdmin = $user->hasRole('superadmin');
 
         if (!$isAdmin && $file->event->created_by !== $user->id) {
             return response()->json(['status' => 'error', 'message' => 'Tidak diizinkan.'], 403);
         }
 
-        Storage::disk('public')->delete($file->file_path);
+        if (str_starts_with($file->file_path, 'gdrive:')) {
+            $driveService = new \App\Services\GoogleDriveService();
+            $driveService->deleteFile($user, substr($file->file_path, 7));
+        } else {
+            Storage::disk('public')->delete($file->file_path);
+        }
         $file->delete();
 
         return response()->json(['status' => 'success', 'message' => 'File berhasil dihapus.']);
@@ -264,18 +288,37 @@ class CalendarController extends Controller
             $year = date('Y', strtotime($event->start_at));
             $safeTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $event->title);
             $dir = "calendar_files/{$year}/{$safeTitle}";
+            $driveService = new \App\Services\GoogleDriveService();
 
             foreach ($request->file('files') as $index => $file) {
                 if ($file->isValid()) {
                     $originalName = $file->getClientOriginalName();
-                    $path = $file->storeAs($dir, time() . '_' . $originalName, 'public');
+                    
+                    $uploadResult = $driveService->uploadFile(
+                        Auth::user(),
+                        'calendar_files', 
+                        $file,
+                        time() . '_' . $originalName,
+                        "{$year}/{$safeTitle}"
+                    );
 
-                    CalendarEventFile::create([
-                        'calendar_event_id' => $event->id,
-                        'file_name'         => $originalName,
-                        'file_path'         => $path,
-                        'description'       => $request->input("file_descriptions.{$index}"),
-                    ]);
+                    if ($uploadResult) {
+                        CalendarEventFile::create([
+                            'calendar_event_id' => $event->id,
+                            'file_name'         => $originalName,
+                            'file_path'         => 'gdrive:' . $uploadResult['drive_file_id'],
+                            'description'       => $request->input("file_descriptions.{$index}"),
+                        ]);
+                    } else {
+                        // Fallback ke penyimpanan lokal jika Google Drive gagal
+                        $path = $file->storeAs($dir, time() . '_' . $originalName, 'public');
+                        CalendarEventFile::create([
+                            'calendar_event_id' => $event->id,
+                            'file_name'         => $originalName,
+                            'file_path'         => $path,
+                            'description'       => $request->input("file_descriptions.{$index}"),
+                        ]);
+                    }
                 }
             }
         }

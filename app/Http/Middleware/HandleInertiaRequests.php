@@ -39,6 +39,16 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
+        $rombels = [];
+        if ($request->user()) {
+            $mode = $request->user()->getActiveNavigationMode();
+            $isSiswa = ($mode['type'] === 'role' && $mode['value'] === 'murid')
+                || ($request->user()->roles->pluck('name')->contains('murid'));
+            if ($isSiswa && $request->user()->rombel_id === null) {
+                $rombels = \App\Models\Rombel::with('jenjang:id,nama')->orderBy('name')->get(['id', 'name', 'jenjang_id']);
+            }
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -54,26 +64,25 @@ class HandleInertiaRequests extends Middleware
                     // Pastikan role/jabatan tersedia di frontend untuk sidebar.
                     $user->loadMissing('roles', 'jabatan');
 
-                    // Hitung active_mode SEBELUM roles di-overwrite jadi string collection,
-                    // agar getActiveNavigationMode() bisa baca nama role dari Eloquent model.
-                    $user->active_mode = $user->getActiveNavigationMode();
-
-                    // Buat properti yang bisa dipakai langsung di React.
-                    $user->is_admin = $user->isAdmin();
-                    $user->roles    = $user->roles->pluck('name');
-                    $user->jabatan  = $user->jabatan->map(fn($j) => [
-                        'id'   => $j->id,
-                        'name' => $j->name,
-                    ])->values();
-
-                    return $user;
+                    return [
+                        ...$user->toArray(),
+                        'active_mode' => $user->getActiveNavigationMode(),
+                        'is_admin'    => $user->isAdmin(),
+                        'is_verified' => (bool)$user->is_verified,
+                        'roles'       => $user->roles->pluck('name'),
+                        'jabatan'     => $user->jabatan->map(fn($j) => [
+                            'id'   => $j->id,
+                            'name' => $j->name,
+                        ])->values(),
+                    ];
                 })(),
                 'is_impersonating' => session()->has('impersonated_by'),
             ],
-            'ziggy' => fn (): array => [
+            'ziggy' => fn(): array => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),
             ],
+            'rombels' => $rombels,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
                 'success' => session('success'),

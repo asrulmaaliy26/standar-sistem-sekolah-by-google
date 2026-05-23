@@ -15,6 +15,18 @@ class User extends Authenticatable implements MustVerifyEmail
     use HasFactory, Notifiable;
 
     /**
+     * Boot the model.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (User $user) {
+            // Berikan role default 'murid' pada setiap pembuatan user baru
+            $muridRole = \App\Models\Role::firstOrCreate(['name' => 'murid']);
+            $user->assignRole($muridRole);
+        });
+    }
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -23,6 +35,12 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'google_id',
+        'google_token',
+        'google_refresh_token',
+        'google_token_expires_at',
+        'email_verified_at',
+        'rombel_id',
     ];
 
     /**
@@ -43,9 +61,69 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'email_verified_at'       => 'datetime',
+            'google_token_expires_at' => 'datetime',
+            'password'                => 'hashed',
         ];
+    }
+
+    /**
+     * Check apakah user sudah connect Google Drive (punya refresh token).
+     */
+    public function hasGoogleDriveAccess(): bool
+    {
+        return ! empty($this->google_refresh_token);
+    }
+
+    /**
+     * Dapatkan user admin yang token Google Drive-nya digunakan untuk sistem.
+     */
+    public static function getSystemGoogleDriveUser(): ?self
+    {
+        return self::whereNotNull('google_refresh_token')
+            ->whereHas('roles', fn($q) => $q->where('name', 'superadmin'))
+            ->first();
+    }
+
+    /**
+     * Build configured Google_Client dengan token user.
+     * Return null jika user belum grant Drive access.
+     */
+    public function getGoogleClient(): ?\Google\Client
+    {
+        if (! $this->hasGoogleDriveAccess()) {
+            return null;
+        }
+
+        $client = new \Google\Client();
+        $client->setClientId(config('services.google.client_id'));
+        $client->setClientSecret(config('services.google.client_secret'));
+        $client->setRedirectUri(config('services.google.redirect'));
+        $client->setScopes([
+            \Google\Service\Drive::DRIVE_FILE,
+        ]);
+        $client->setAccessType('offline');
+
+        $accessToken = [
+            'access_token'  => $this->google_token,
+            'refresh_token' => $this->google_refresh_token,
+            'expires_in'    => 3600,
+        ];
+
+        $client->setAccessToken($accessToken);
+
+        // Auto-refresh jika expired
+        if ($client->isAccessTokenExpired()) {
+            $client->fetchAccessTokenWithRefreshToken($this->google_refresh_token);
+            $newToken = $client->getAccessToken();
+
+            $this->update([
+                'google_token'            => $newToken['access_token'],
+                'google_token_expires_at' => now()->addSeconds($newToken['expires_in'] ?? 3600),
+            ]);
+        }
+
+        return $client;
     }
 
     /**
@@ -61,7 +139,8 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function hasRole($role): bool
     {
-        return $this->roles()->where('name', $role)->exists();
+        $roleName = is_string($role) ? $role : $role->name;
+        return $this->roles->contains('name', $roleName);
     }
 
     /**
@@ -69,7 +148,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function isAdmin(): bool
     {
-        return $this->hasRole('admin');
+        return $this->hasRole('superadmin');
     }
 
     /**
@@ -107,7 +186,8 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function hasJabatan($jabatan): bool
     {
-        return $this->jabatan()->where('name', $jabatan)->exists();
+        $jabatanName = is_string($jabatan) ? $jabatan : $jabatan->name;
+        return $this->jabatan->contains('name', $jabatanName);
     }
 
     /**
@@ -168,5 +248,12 @@ class User extends Authenticatable implements MustVerifyEmail
         $sessionKey = 'navigation_mode_' . $this->id;
         Session::forget($sessionKey);
     }
-}
 
+    /**
+     * Get the rombel that the user belongs to.
+     */
+    public function rombel()
+    {
+        return $this->belongsTo(Rombel::class, 'rombel_id');
+    }
+}

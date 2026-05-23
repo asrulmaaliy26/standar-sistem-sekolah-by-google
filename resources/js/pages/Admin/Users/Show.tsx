@@ -64,7 +64,7 @@ export default function Show({ user }: ShowProps) {
                                     {user.roles.map((role) => (
                                         <span
                                             key={role}
-                                            className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${role === 'admin'
+                                            className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${role === 'superadmin'
                                                     ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                                                     : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                                                 }`}

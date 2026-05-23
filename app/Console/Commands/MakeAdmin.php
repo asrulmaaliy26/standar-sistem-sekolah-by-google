@@ -37,11 +37,11 @@ class MakeAdmin extends Command
         }
 
         if ($removeFlag) {
-            $user->removeRole('admin');
-            $this->info("✓ Admin role removed from {$email}");
+            $user->removeRole('superadmin');
+            $this->info("Admin role removed from user {$user->name}.");
         } else {
-            $user->assignRole('admin');
-            $this->info("✓ User {$email} is now an admin!");
+            $user->assignRole('superadmin');
+            $this->info("User {$user->name} is now an admin.");
         }
 
         return 0;

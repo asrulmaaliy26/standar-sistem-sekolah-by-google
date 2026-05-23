@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IsAdmin;
+use App\Http\Middleware\IsAdminAkademik;
+use App\Http\Middleware\IsAdminPersuratan;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -25,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin' => IsAdmin::class,
+            'role' => CheckRole::class,
+            'admin_akademik' => IsAdminAkademik::class,
+            'admin_persuratan' => IsAdminPersuratan::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

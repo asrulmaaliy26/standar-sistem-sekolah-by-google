@@ -33,7 +33,7 @@ class NavigationModeController extends Controller
 
         $user->setNavigationMode($validated['type'], $validated['value']);
 
-        return back();
+        return redirect()->route('dashboard');
     }
 
     /**
@@ -43,6 +43,6 @@ class NavigationModeController extends Controller
     {
         $request->user()->resetNavigationMode();
 
-        return back();
+        return redirect()->route('dashboard');
     }
 }

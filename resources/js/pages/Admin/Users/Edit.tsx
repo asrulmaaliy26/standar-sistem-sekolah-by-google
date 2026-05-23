@@ -17,14 +17,16 @@ interface EditProps {
         id: number
         name: string
         email: string
+        rombel_id?: number | null
     }
     roles: Role[]
     jabatan: JabatanItem[]
+    rombels: { id: number; name: string }[]
     userRoles: number[]
     userJabatanIds: number[]
 }
 
-export default function Edit({ user, roles, jabatan, userRoles, userJabatanIds }: EditProps) {
+export default function Edit({ user, roles, jabatan, rombels, userRoles, userJabatanIds }: EditProps) {
     const { data, setData, put, errors, processing } = useForm({
         name: user.name,
         email: user.email,
@@ -78,6 +80,15 @@ export default function Edit({ user, roles, jabatan, userRoles, userJabatanIds }
                     onError: () => setJabatanLoading(null),
                 }
             )
+        }
+    }
+
+    const handleRombelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value;
+        if (!val) {
+            router.post(route('admin.users.remove-rombel', user.id), {}, { preserveScroll: true });
+        } else {
+            router.post(route('admin.users.assign-rombel', user.id), { rombel_id: val }, { preserveScroll: true });
         }
     }
 
@@ -227,6 +238,26 @@ export default function Edit({ user, roles, jabatan, userRoles, userJabatanIds }
                         {jabatan.length === 0 && (
                             <p className="text-sm text-muted-foreground">Belum ada jabatan tersedia.</p>
                         )}
+                    </div>
+
+                    {/* Rombel Section */}
+                    <div className="bg-card shadow sm:rounded-lg p-6 border border-border">
+                        <h2 className="text-base font-semibold text-foreground mb-1">Kelas Siswa</h2>
+                        <p className="text-xs text-muted-foreground mb-4">
+                            Pilih kelas jika user ini adalah siswa. Perubahan langsung tersimpan.
+                        </p>
+                        <div>
+                            <select
+                                defaultValue={user.rombel_id || ''}
+                                onChange={handleRombelChange}
+                                className="mt-1 block w-full rounded-md px-3 py-2 border border-input bg-background text-foreground shadow-sm focus:border-ring focus:outline-none"
+                            >
+                                <option value="">-- Belum memilih kelas --</option>
+                                {rombels.map(r => (
+                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>

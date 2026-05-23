@@ -16,6 +16,9 @@ class IsAdmin
     public function handle(Request $request, Closure $next): Response
     {
         if (!$request->user() || !$request->user()->isAdmin()) {
+            if ($request->header('X-Inertia')) {
+                return redirect()->route('dashboard')->with('error', 'Akses ditolak. Anda tidak memiliki izin admin.');
+            }
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

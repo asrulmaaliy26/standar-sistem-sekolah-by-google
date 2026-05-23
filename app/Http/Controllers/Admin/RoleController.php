@@ -90,7 +90,7 @@ class RoleController extends Controller
     public function update(Request $request, Role $role)
     {
         // Prevent editing system roles
-        if (in_array($role->name, ['admin', 'user'])) {
+        if (in_array($role->name, ['superadmin', 'user'])) {
             return redirect()->route('admin.roles.index')->with('error', 'Cannot edit system roles');
         }
 
@@ -110,7 +110,7 @@ class RoleController extends Controller
     public function destroy(Role $role)
     {
         // Prevent deleting system roles
-        if (in_array($role->name, ['admin', 'user'])) {
+        if (in_array($role->name, ['superadmin', 'user'])) {
             return redirect()->route('admin.roles.index')->with('error', 'Cannot delete system roles');
         }
 
