@@ -13,6 +13,7 @@ import {
     Layers,
     Inbox,
     Send,
+    CalendarCheck,
 } from 'lucide-react';
 
 /**
@@ -94,6 +95,11 @@ export const roleNavigation: Record<string, NavItem[]> = {
             title: 'Data Guru',
             href: '/admin/guru',
             icon: Users,
+        },
+        {
+            title: 'Ploting KRS',
+            href: '/admin/krs',
+            icon: CalendarCheck,
         },
     ],
 

@@ -68,6 +68,23 @@ Route::middleware(['auth', 'verified', 'admin_akademik'])->prefix('admin')->name
     Route::post('guru/{guru}/links', [GuruAkademikController::class, 'storeLink'])->name('guru.store-link');
     Route::put('guru/links/{link}', [GuruAkademikController::class, 'updateLink'])->name('guru.update-link');
     Route::delete('guru/links/{link}', [GuruAkademikController::class, 'destroyLink'])->name('guru.destroy-link');
+
+    // Ploting KRS
+    Route::get('krs', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'index'])->name('krs.index');
+    Route::post('krs/period', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'storePeriod'])->name('krs.period.store');
+    Route::post('krs/period/hari-aktif', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateHariAktif'])->name('krs.period.hari_aktif');
+    Route::get('krs/template/{type}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'downloadTemplate'])->name('krs.template');
+    Route::post('krs/import', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'importCsv'])->name('krs.import');
+    Route::post('krs/waktu/generate', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'generateWaktu'])->name('krs.waktu.generate');
+    Route::post('krs/plot', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'plotOtomatis'])->name('krs.plot');
+    Route::put('krs/plot/{id}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updatePlot'])->name('krs.plot.update');
+    Route::post('krs/reset', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'resetPlot'])->name('krs.reset');
+    Route::post('krs/reset-all', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'resetSemuaPlot'])->name('krs.reset_all');
+    Route::get('krs/export', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'exportCsv'])->name('krs.export');
+    Route::post('krs/master-data/delete', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'destroyMasterData'])->name('krs.master_data.delete');
+    Route::delete('krs/master-data/{type}/{id}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'destroySingleMasterData'])->name('krs.master_data.delete_single');
+    Route::put('krs/master-data/dosen/{id}/max-sks', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateDosenMaxSks'])->name('krs.master_data.dosen.update_sks');
+    Route::post('krs/master-data/dosen/auto-max-sks', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'autoCalculateMaxSks'])->name('krs.master_data.dosen.auto_sks');
 });
 
 /**

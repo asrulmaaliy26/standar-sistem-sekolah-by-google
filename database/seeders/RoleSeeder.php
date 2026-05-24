@@ -21,11 +21,6 @@ class RoleSeeder extends Seeder
         );
 
         $userRole = Role::firstOrCreate(
-            ['name' => 'user'],
-            ['description' => 'Regular user']
-        );
-
-        $userRole = Role::firstOrCreate(
             ['name' => 'murid'],
             ['description' => 'Regular murid']
         );
