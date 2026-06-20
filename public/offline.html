@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Offline — Smart LPI Al-Hidayah</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --green: #1a6b3c;
+            --green-light: #e8f5ee;
+            --text: #1a1a1a;
+            --muted: #6b7280;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--green-light);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 1.5rem;
+            padding: 2.5rem 2rem;
+            max-width: 360px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+
+        .icon-wrap {
+            width: 80px;
+            height: 80px;
+            background: var(--green-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+
+        .icon-wrap svg {
+            width: 40px;
+            height: 40px;
+            color: var(--green);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .logo img {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+        }
+
+        .logo-text {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--green);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+        }
+
+        p {
+            font-size: 0.925rem;
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 1.75rem;
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--green);
+            color: #fff;
+            padding: 0.75rem 2rem;
+            border-radius: 0.75rem;
+            font-size: 0.925rem;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            width: 100%;
+        }
+
+        .btn:hover { background: #145530; }
+        .btn:active { transform: scale(0.98); }
+
+        .hint {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">
+            <img src="/icons/icon-72x72.png" alt="Smart LPI" onerror="this.style.display='none'">
+            <span class="logo-text">Smart LPI Al-Hidayah</span>
+        </div>
+
+        <div class="icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7h18M3 12h18M3 17h18"/>
+                <circle cx="12" cy="12" r="10" stroke-dasharray="4 2"/>
+            </svg>
+        </div>
+
+        <h1>Tidak Ada Koneksi</h1>
+        <p>
+            Sepertinya perangkat Anda sedang offline.<br>
+            Halaman yang pernah dibuka tetap bisa diakses dari cache.
+        </p>
+
+        <button class="btn" onclick="location.reload()">
+            Coba Lagi
+        </button>
+
+        <p class="hint">Atau coba buka halaman yang pernah dikunjungi sebelumnya.</p>
+    </div>
+</body>
+</html>

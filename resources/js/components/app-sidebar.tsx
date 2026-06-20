@@ -38,6 +38,11 @@ export function AppSidebar() {
     // Dapatkan nav items berdasarkan mode aktif
     const modeNavItems = getNavItemsByMode(activeMode.type, activeMode.value);
 
+    // Sembunyikan menu Pengarsipan khusus untuk murid
+    const filteredCommonNavItems = commonNavItems.filter(item => 
+        !(activeMode.type === 'role' && activeMode.value === 'murid' && item.title === 'Pengarsipan')
+    );
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -54,7 +59,7 @@ export function AppSidebar() {
 
             <SidebarContent>
                 {/* Navigasi umum (Dashboard) */}
-                <NavMain items={commonNavItems} label="Umum" />
+                <NavMain items={filteredCommonNavItems} label="Umum" />
 
                 {/* Navigasi berdasarkan mode aktif (role/jabatan) */}
                 {modeNavItems.length > 0 && (

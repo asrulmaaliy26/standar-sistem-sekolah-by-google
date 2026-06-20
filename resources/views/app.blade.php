@@ -37,6 +37,16 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
+        {{-- PWA Manifest & Meta Tags --}}
+        <link rel="manifest" href="/manifest.json">
+        <meta name="theme-color" content="#1a6b3c">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'Smart LPI') }}">
+        <meta name="msapplication-TileColor" content="#1a6b3c">
+        <meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
+
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 

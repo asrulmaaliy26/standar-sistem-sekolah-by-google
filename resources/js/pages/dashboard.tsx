@@ -56,7 +56,7 @@ export default function Dashboard() {
                 <div>
                     <h2 className="text-lg font-bold text-foreground mb-4">Menu Cepat</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {QUICK_LINKS.map(item => (
+                        {QUICK_LINKS.filter(item => !(roleName === 'murid' && item.title === 'Pengarsipan')).map(item => (
                             <Link key={item.href} href={item.href}
                                 className={`group flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200`}
                             >

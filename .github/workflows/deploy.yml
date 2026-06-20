@@ -1,0 +1,92 @@
+name: 🚀 Auto Deploy - smart.lpialhidayah.or.id
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, dom, filter, gd, json, libxml, openssl, pcre, phar, pdo, session, tokenizer, xmlwriter, fileinfo
+          coverage: none
+
+      - name: 📦 Install Composer Dependencies
+        run: composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 📦 Install NPM Dependencies
+        run: npm install
+
+      - name: 🏗️ Build Assets (Vite)
+        run: npm run build
+
+      - name: 🗜️ Create Archive
+        run: tar -czf ../release.tar.gz --exclude=.git --exclude=node_modules . && mv ../release.tar.gz .
+
+      - name: 📤 Upload Archive ke VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          source: "release.tar.gz"
+          target: "/home/staialmannan/smart.lpialhidayah.or.id"
+
+      - name: ♻️ Extract & Setup di VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          script: |
+            cd /home/staialmannan/smart.lpialhidayah.or.id
+
+            # Ekstrak file
+            tar -xzf release.tar.gz
+            rm release.tar.gz
+
+            # Konfigurasi .env awal jika belum ada
+            if [ ! -f .env ]; then
+              if [ -f ".env.example" ]; then
+                cp .env.example .env
+              elif [ -f ".env copy" ]; then
+                cp ".env copy" .env
+              fi
+              php artisan key:generate
+            fi
+
+            # Hapus file default Webuzo jika ada di public/
+            rm -f public/default.html
+
+            # Setup Ownership dan Permission Laravel
+            chown -R staialmannan:staialmannan /home/staialmannan/smart.lpialhidayah.or.id
+            chmod -R 775 storage bootstrap/cache
+
+            # Link storage jika belum ada
+            php artisan storage:link || true
+
+            # Jalankan migrasi database
+            php artisan migrate --force
+
+            # Bersihkan cache
+            php artisan optimize:clear
+
+            # Restart Apache dengan aman
+            /usr/local/apps/apache2/bin/apachectl graceful

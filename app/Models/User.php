@@ -41,6 +41,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'google_token_expires_at',
         'email_verified_at',
         'rombel_id',
+        'kartu_santri_path',
     ];
 
     /**

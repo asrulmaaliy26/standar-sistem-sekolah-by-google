@@ -33,15 +33,19 @@ class ProfileController extends Controller
      */
     public function verifyCard(Request $request)
     {
-        $validated = $request->validate([
-            'qr_data' => 'required|string',
+        $request->validate([
+            'kartu' => 'required|image|max:10240',
         ]);
 
-        if (trim($validated['qr_data']) === '21d16bb852954f7') {
-            auth()->user()->update(['is_verified' => true]);
-            return redirect()->back()->with('success', 'Verifikasi Kartu Santri berhasil.');
-        }
+        $file = $request->file('kartu');
+        $filename = 'kartu_santri_' . auth()->id() . '_' . time() . '.' . $file->extension();
+        $path = $file->storeAs('kartu_santri', $filename, 'public');
 
-        return redirect()->back()->with('error', 'QR Code tidak valid atau format tidak dikenali.');
+        auth()->user()->update([
+            'is_verified' => true,
+            'kartu_santri_path' => $path,
+        ]);
+
+        return redirect()->back()->with('success', 'Kartu Santri berhasil diunggah dan disimpan.');
     }
 }

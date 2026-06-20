@@ -1,4 +1,5 @@
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { type BreadcrumbItem } from '@/types';
 import { type ReactNode, useState, useEffect, useRef } from 'react';
 import { usePage, Link, router } from '@inertiajs/react';
@@ -182,6 +183,7 @@ function RombelPopup() {
     );
 }
 
+
 import jsQR from 'jsqr';
 
 function VerificationPopup() {
@@ -226,7 +228,7 @@ function VerificationPopup() {
                 
                 if (code) {
                     if (code.data === '21d16bb852954f7') {
-                        submitVerification(code.data);
+                        submitVerification(file);
                     } else {
                         setErrorMsg('QR Code tidak sesuai format Kartu Santri.');
                         setProcessing(false);
@@ -241,14 +243,17 @@ function VerificationPopup() {
         reader.readAsDataURL(file);
     };
 
-    const submitVerification = (qrData: string) => {
-        router.post(route('siswa.profile.verify-card'), { qr_data: qrData }, {
+    const submitVerification = (file: File) => {
+        const formData = new FormData();
+        formData.append('kartu', file);
+
+        router.post(route('siswa.profile.verify-card'), formData, {
             onSuccess: () => {
                 setIsOpen(false);
                 setProcessing(false);
             },
-            onError: () => {
-                setErrorMsg('Terjadi kesalahan saat memverifikasi di server.');
+            onError: (errors) => {
+                setErrorMsg(errors.kartu || 'Terjadi kesalahan saat mengunggah foto.');
                 setProcessing(false);
             }
         });
@@ -357,5 +362,6 @@ export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => (
         <VerificationPopup />
         <RombelPopup />
         <GlobalFlashNotification />
+        <PwaInstallPrompt />
     </AppLayoutTemplate>
 );
