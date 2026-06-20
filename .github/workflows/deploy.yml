@@ -82,9 +82,6 @@ jobs:
             # Link storage jika belum ada
             php artisan storage:link || true
 
-            # Jalankan migrasi database
-            php artisan migrate --force
-
             # Bersihkan cache
             php artisan optimize:clear
 
