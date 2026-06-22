@@ -223,15 +223,15 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     };
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Ploting KRS', href: '/admin/krs' }]}>
-            <Head title="Ploting KRS" />
+        <AppLayout breadcrumbs={[{ title: 'Ploting Jadwal', href: '/admin/krs' }]}>
+            <Head title="Ploting Jadwal" />
 
             <div className="p-6 w-full mx-auto space-y-6">
                 
                 {/* Header & Period Selection */}
                 <div className="bg-card text-card-foreground p-6 rounded-xl shadow-sm border border-border flex justify-between items-center">
                     <div>
-                        <h1 className="text-2xl font-bold">Sistem Ploting Jadwal KRS</h1>
+                        <h1 className="text-2xl font-bold">Sistem Ploting Jadwal</h1>
                         <p className="text-sm text-muted-foreground">Pilih atau buat periode akademik baru.</p>
                     </div>
                     
@@ -273,8 +273,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                             {[
-                                { title: 'Matakuliah', count: matakuliahs.length, id: 'matakuliah', icon: BookOpen, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
-                                { title: 'Dosen', count: dosens.length, id: 'dosen', icon: Users, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' },
+                                { title: 'Mapel', count: matakuliahs.length, id: 'matakuliah', icon: BookOpen, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
+                                { title: 'Pendidik', count: dosens.length, id: 'dosen', icon: Users, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' },
                                 { title: 'Ruang', count: ruangs.length, id: 'ruang', icon: MapPin, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
                                 { title: 'Waktu', count: waktus.length, id: 'waktu', icon: Clock, color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
                             ].map(s => (
@@ -307,11 +307,11 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 <div>
                                     <label className="block text-xs mb-1">Jenis Data</label>
                                     <select className="border border-input bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50 p-2 rounded" value={importData.type} onChange={e => setImportData('type', e.target.value)}>
-                                        <option value="matakuliah">1. Matakuliah & Kelas</option>
-                                        <option value="dosen" disabled={!isMatakuliahUploaded}>2. Dosen & Distribusi MK</option>
+                                        <option value="matakuliah">1. Mapel & Kelas</option>
+                                        <option value="dosen" disabled={!isMatakuliahUploaded}>2. Pendidik & Distribusi Mapel</option>
                                         <option value="ruang" disabled={!isMatakuliahUploaded}>3. List Ruang</option>
                                     </select>
-                                    {!isMatakuliahUploaded && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Upload MK dulu.</p>}
+                                    {!isMatakuliahUploaded && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Upload Mapel dulu.</p>}
                                 </div>
                                 <div>
                                     <label className="block text-xs mb-1">File (CSV / XLSX)</label>
@@ -346,7 +346,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                     <input 
                                         type="text" 
-                                        placeholder="Cari Kode MK, Nama MK, Dosen, atau Ruang..." 
+                                        placeholder="Cari Kode MP, Nama MP, Pendidik, atau Ruang..." 
                                         className="w-full pl-9 pr-4 py-2 border border-input rounded-md bg-background focus:ring-2 focus:ring-primary text-sm"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -370,11 +370,11 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             <table className="w-full text-left border-collapse">
                                 <thead className="bg-muted text-muted-foreground border-b border-border">
                                     <tr>
-                                        <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('kode_mk')}>Kode MK {sortConfig?.key === 'kode_mk' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                        <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('nama_mk')}>Nama MK {sortConfig?.key === 'nama_mk' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                        <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('kode_mk')}>Kode MP {sortConfig?.key === 'kode_mk' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                        <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('nama_mk')}>Nama MP {sortConfig?.key === 'nama_mk' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                                         <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('kelas')}>Kelas {sortConfig?.key === 'kelas' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                        <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('sks')}>SKS {sortConfig?.key === 'sks' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                        <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('dosen')}>Dosen {sortConfig?.key === 'dosen' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                        <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('sks')}>PJ {sortConfig?.key === 'sks' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                        <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('dosen')}>Pendidik {sortConfig?.key === 'dosen' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                                         <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('ruang')}>Ruang {sortConfig?.key === 'ruang' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                                         <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('jadwal')}>Jadwal {sortConfig?.key === 'jadwal' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                                         <th className="p-3 cursor-pointer hover:text-primary select-none" onClick={() => requestSort('status')}>Status {sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
@@ -458,16 +458,16 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
                         <div className="bg-card text-card-foreground border border-border rounded-xl p-6 w-full max-w-4xl shadow-2xl relative max-h-[90vh] flex flex-col">
                             <h3 className="font-bold text-xl mb-2">Edit Plot Manual</h3>
-                            <p className="text-sm text-muted-foreground mb-6">MK: <span className="font-bold text-foreground">{editPlot.matakuliah.kode_mk} - {editPlot.matakuliah.nama_mk} ({editPlot.matakuliah.sks} SKS)</span></p>
+                            <p className="text-sm text-muted-foreground mb-6">Mapel: <span className="font-bold text-foreground">{editPlot.matakuliah.kode_mk} - {editPlot.matakuliah.nama_mk} ({editPlot.matakuliah.sks} PJ)</span></p>
                             
                             <form onSubmit={submitEdit} className="flex-1 overflow-y-auto pr-2">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     {/* Left Column: Form Inputs */}
                                     <div className="space-y-5">
                                         <div>
-                                            <label className="block text-sm font-medium mb-1.5">Dosen</label>
+                                            <label className="block text-sm font-medium mb-1.5">Pendidik</label>
                                             <select className="w-full border border-input bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50 p-2.5 rounded-md shadow-sm focus:ring-2 focus:ring-primary" value={editData.krs_dosen_id} onChange={e => setEditData('krs_dosen_id', e.target.value)}>
-                                                <option value="">-- Pilih Dosen --</option>
+                                                <option value="">-- Pilih Pendidik --</option>
                                                 {dosens.filter((d: any) => d.kode_mk === editPlot.matakuliah.kode_mk).map((d: any) => <option key={d.id} value={d.id}>{d.nama_dosen}</option>)}
                                             </select>
                                         </div>
@@ -581,7 +581,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     >
                                                         <div className="font-semibold">{timeStr}</div>
                                                         <div className="text-[10px] mt-1 leading-tight">
-                                                            {takenDosen && takenRuang ? 'Dosen & Ruang Terpakai' : takenDosen ? 'Dosen Mengajar' : takenRuang ? 'Ruang Terpakai' : 'Tersedia'}
+                                                            {takenDosen && takenRuang ? 'Pendidik & Ruang Terpakai' : takenDosen ? 'Pendidik Mengajar' : takenRuang ? 'Ruang Terpakai' : 'Tersedia'}
                                                         </div>
                                                     </button>
                                                 );
@@ -591,7 +591,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                         <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground bg-muted/50 p-2 rounded border border-border">
                                             <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-background border border-input block"></span> Tersedia</div>
                                             <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-primary block"></span> Dipilih (OK)</div>
-                                            <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-100 border border-orange-200 block"></span> Dosen Terpakai</div>
+                                            <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-100 border border-orange-200 block"></span> Pendidik Terpakai</div>
                                             <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-200 block"></span> Ruang Terpakai</div>
                                             <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-500 block"></span> Dipilih (Bentrok!)</div>
                                         </div>
@@ -618,18 +618,18 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                             {viewMasterData === 'dosen' && (
                                                 <button 
                                                     onClick={() => {
-                                                        if (confirm('Sistem akan menghitung total SKS dari setiap Matakuliah dan membaginya rata kepada semua dosen pengampu yang batas SKS-nya belum diisi. Lanjutkan?')) {
+                                                        if (confirm('Sistem akan menghitung total PJ dari setiap Mapel dan membaginya rata kepada semua pendidik pengampu yang batas PJ-nya belum diisi. Lanjutkan?')) {
                                                             router.post(route('admin.krs.master_data.dosen.auto_sks'), {
                                                                 period_id: activePeriodId
                                                             }, {
                                                                 preserveScroll: true,
-                                                                onSuccess: () => alert('Pembagian SKS Otomatis selesai.')
+                                                                onSuccess: () => alert('Pembagian PJ Otomatis selesai.')
                                                             });
                                                         }
                                                     }} 
                                                     className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 px-3 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800 flex items-center gap-1 font-semibold transition-colors shadow-sm"
                                                 >
-                                                    <Calculator className="w-3 h-3"/> Bagi Rata SKS Otomatis
+                                                    <Calculator className="w-3 h-3"/> Bagi Rata PJ Otomatis
                                                 </button>
                                             )}
                                             <button 
@@ -706,7 +706,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     <input type="time" name="jam_mulai" required value={genJamMulai} onChange={e => setGenJamMulai(e.target.value)} className="w-full border border-input bg-background p-2 rounded" />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-medium mb-1">Durasi 1 SKS (Menit)</label>
+                                                    <label className="block text-sm font-medium mb-1">Durasi 1 PJ (Menit)</label>
                                                     <input type="number" name="durasi_sks" required value={genDurasi} onChange={e => setGenDurasi(parseInt(e.target.value))} min={1} className="w-full border border-input bg-background p-2 rounded" />
                                                 </div>
                                                 <div>
@@ -769,8 +769,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 ) : (
                                     <table className="w-full text-left border-collapse text-sm">
                                         <thead className="bg-muted text-muted-foreground border-b border-border sticky top-0">
-                                            {viewMasterData === 'matakuliah' && <tr><th className="p-3">Kode MK</th><th className="p-3">Nama Matakuliah</th><th className="p-3">Kelas</th><th className="p-3">SKS</th><th className="p-3">Aksi</th></tr>}
-                                            {viewMasterData === 'dosen' && <tr><th className="p-3">Dosen Pengampu</th><th className="p-3">Kode MK</th><th className="p-3">Nama Matakuliah</th><th className="p-3">Max SKS</th><th className="p-3">Aksi</th></tr>}
+                                            {viewMasterData === 'matakuliah' && <tr><th className="p-3">Kode MP</th><th className="p-3">Nama Mapel</th><th className="p-3">Kelas</th><th className="p-3">PJ</th><th className="p-3">Aksi</th></tr>}
+                                            {viewMasterData === 'dosen' && <tr><th className="p-3">Pendidik Pengampu</th><th className="p-3">Kode MP</th><th className="p-3">Nama Mapel</th><th className="p-3">Max PJ</th><th className="p-3">Aksi</th></tr>}
                                             {viewMasterData === 'ruang' && <tr><th className="p-3">Nama Ruang</th><th className="p-3">Kapasitas</th><th className="p-3">Aksi</th></tr>}
                                         </thead>
                                         <tbody>
@@ -780,6 +780,34 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     <td className="p-3"><button onClick={() => handleDeleteMasterData('matakuliah', m.id)} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded"><Trash2 className="w-4 h-4"/></button></td>
                                                 </tr>
                                             ))}
+                                            {viewMasterData === 'matakuliah' && (
+                                                <tr className="border-b border-border bg-muted/30">
+                                                    <td className="p-3"><input type="text" id="new_mk_kode" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="Kode MP" /></td>
+                                                    <td className="p-3"><input type="text" id="new_mk_nama" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="Nama Mapel" /></td>
+                                                    <td className="p-3"><input type="text" id="new_mk_kelas" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="Kelas" /></td>
+                                                    <td className="p-3"><input type="number" id="new_mk_sks" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="PJ" min="1" /></td>
+                                                    <td className="p-3">
+                                                        <button onClick={() => {
+                                                            const kode = (document.getElementById('new_mk_kode') as HTMLInputElement).value;
+                                                            const nama = (document.getElementById('new_mk_nama') as HTMLInputElement).value;
+                                                            const kelas = (document.getElementById('new_mk_kelas') as HTMLInputElement).value;
+                                                            const sks = (document.getElementById('new_mk_sks') as HTMLInputElement).value;
+                                                            if(!kode || !nama || !kelas || !sks) return alert('Lengkapi data');
+                                                            router.post(route('admin.krs.master_data.store'), {
+                                                                period_id: activePeriodId, type: 'matakuliah', kode_mp: kode, nama_mp: nama, kelas: kelas, pj: sks
+                                                            }, {
+                                                                preserveScroll: true,
+                                                                onSuccess: () => {
+                                                                    (document.getElementById('new_mk_kode') as HTMLInputElement).value = '';
+                                                                    (document.getElementById('new_mk_nama') as HTMLInputElement).value = '';
+                                                                    (document.getElementById('new_mk_kelas') as HTMLInputElement).value = '';
+                                                                    (document.getElementById('new_mk_sks') as HTMLInputElement).value = '';
+                                                                }
+                                                            });
+                                                        }} className="text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1.5 rounded font-medium text-xs">Tambah</button>
+                                                    </td>
+                                                </tr>
+                                            )}
                                             {viewMasterData === 'dosen' && dosens.map((d: any) => {
                                                 const mk = matakuliahs.find((m: any) => m.kode_mk === d.kode_mk);
                                                 return (
@@ -798,7 +826,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                     if (val !== String(d.max_sks || '')) {
                                                                         router.put(route('admin.krs.master_data.dosen.update_sks', d.id), { max_sks: val }, {
                                                                             preserveScroll: true,
-                                                                            onSuccess: () => alert('Batas SKS ' + d.nama_dosen + ' berhasil diperbarui.')
+                                                                            onSuccess: () => alert('Batas PJ ' + d.nama_dosen + ' berhasil diperbarui.')
                                                                         });
                                                                     }
                                                                 }}
@@ -808,12 +836,60 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     </tr>
                                                 );
                                             })}
+                                            {viewMasterData === 'dosen' && (
+                                                <tr className="border-b border-border bg-muted/30">
+                                                    <td className="p-3"><input type="text" id="new_dsn_nama" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="Nama Pendidik" /></td>
+                                                    <td className="p-3"><input type="text" id="new_dsn_kode" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="Kode MP" /></td>
+                                                    <td className="p-3">-</td>
+                                                    <td className="p-3"><input type="number" id="new_dsn_sks" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="Max PJ" /></td>
+                                                    <td className="p-3">
+                                                        <button onClick={() => {
+                                                            const nama = (document.getElementById('new_dsn_nama') as HTMLInputElement).value;
+                                                            const kode = (document.getElementById('new_dsn_kode') as HTMLInputElement).value;
+                                                            const sks = (document.getElementById('new_dsn_sks') as HTMLInputElement).value;
+                                                            if(!nama || !kode) return alert('Lengkapi data');
+                                                            router.post(route('admin.krs.master_data.store'), {
+                                                                period_id: activePeriodId, type: 'dosen', nama_pendidik: nama, kode_mp: kode, max_pj: sks || null
+                                                            }, {
+                                                                preserveScroll: true,
+                                                                onSuccess: () => {
+                                                                    (document.getElementById('new_dsn_nama') as HTMLInputElement).value = '';
+                                                                    (document.getElementById('new_dsn_kode') as HTMLInputElement).value = '';
+                                                                    (document.getElementById('new_dsn_sks') as HTMLInputElement).value = '';
+                                                                }
+                                                            });
+                                                        }} className="text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1.5 rounded font-medium text-xs">Tambah</button>
+                                                    </td>
+                                                </tr>
+                                            )}
                                             {viewMasterData === 'ruang' && ruangs.map((r: any) => (
                                                 <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                                                     <td className="p-3 font-medium">{r.nama_ruang}</td><td className="p-3">{r.kapasitas}</td>
                                                     <td className="p-3"><button onClick={() => handleDeleteMasterData('ruang', r.id)} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded"><Trash2 className="w-4 h-4"/></button></td>
                                                 </tr>
                                             ))}
+                                            {viewMasterData === 'ruang' && (
+                                                <tr className="border-b border-border bg-muted/30">
+                                                    <td className="p-3"><input type="text" id="new_rng_nama" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="Nama Ruang" /></td>
+                                                    <td className="p-3"><input type="number" id="new_rng_kapasitas" className="w-full border border-input rounded p-1 text-sm bg-background" placeholder="Kapasitas" min="1" /></td>
+                                                    <td className="p-3">
+                                                        <button onClick={() => {
+                                                            const nama = (document.getElementById('new_rng_nama') as HTMLInputElement).value;
+                                                            const kap = (document.getElementById('new_rng_kapasitas') as HTMLInputElement).value;
+                                                            if(!nama || !kap) return alert('Lengkapi data');
+                                                            router.post(route('admin.krs.master_data.store'), {
+                                                                period_id: activePeriodId, type: 'ruang', nama_ruang: nama, kapasitas: kap
+                                                            }, {
+                                                                preserveScroll: true,
+                                                                onSuccess: () => {
+                                                                    (document.getElementById('new_rng_nama') as HTMLInputElement).value = '';
+                                                                    (document.getElementById('new_rng_kapasitas') as HTMLInputElement).value = '';
+                                                                }
+                                                            });
+                                                        }} className="text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1.5 rounded font-medium text-xs">Tambah</button>
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 )}

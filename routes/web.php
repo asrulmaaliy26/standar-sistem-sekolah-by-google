@@ -12,11 +12,6 @@ Route::get('/', function () {
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 
-Route::get('/ujian', function () {
-    return Inertia::render('Ujian');
-})->name('ujian');
-
-Route::post('/pelanggaran', [\App\Http\Controllers\PelanggaranController::class, 'store'])->name('pelanggaran.store');
 
 Route::middleware(['auth', 'verified'])->group(function () {
 

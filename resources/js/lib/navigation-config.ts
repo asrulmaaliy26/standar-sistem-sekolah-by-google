@@ -44,8 +44,8 @@ export const roleNavigation: Record<string, NavItem[]> = {
             icon: LayoutDashboard,
         },
         {
-            title: 'Pelanggaran Ujian',
-            href: '/admin/pelanggaran',
+            title: 'Pelanggaran',
+            href: 'https://docs.google.com/spreadsheets/d/1EleHQr7y9eGg5l3NqnTSUfh8qMpTjM7L-lKDBw9Hql4/edit?usp=sharing',
             icon: ClipboardList,
         },
         {
@@ -82,6 +82,11 @@ export const roleNavigation: Record<string, NavItem[]> = {
             icon: LayoutDashboard,
         },
         {
+            title: 'Pelanggaran',
+            href: 'https://docs.google.com/spreadsheets/d/1EleHQr7y9eGg5l3NqnTSUfh8qMpTjM7L-lKDBw9Hql4/edit?usp=sharing',
+            icon: ClipboardList,
+        },
+        {
             title: 'Data Jenjang',
             href: '/admin/jenjang',
             icon: Layers,
@@ -97,7 +102,7 @@ export const roleNavigation: Record<string, NavItem[]> = {
             icon: Users,
         },
         {
-            title: 'Ploting KRS',
+            title: 'Ploting Jadwal',
             href: '/admin/krs',
             icon: CalendarCheck,
         },
@@ -108,6 +113,11 @@ export const roleNavigation: Record<string, NavItem[]> = {
             title: 'Dashboard',
             href: '/admin/dashboard',
             icon: LayoutDashboard,
+        },
+        {
+            title: 'Pelanggaran',
+            href: 'https://docs.google.com/spreadsheets/d/1EleHQr7y9eGg5l3NqnTSUfh8qMpTjM7L-lKDBw9Hql4/edit?usp=sharing',
+            icon: ClipboardList,
         },
         {
             title: 'Surat Masuk',
@@ -126,6 +136,11 @@ export const roleNavigation: Record<string, NavItem[]> = {
             title: 'Kalender Kegiatan',
             href: '/calendar',
             icon: Calendar,
+        },
+        {
+            title: 'Pelanggaran',
+            href: 'https://docs.google.com/spreadsheets/d/1EleHQr7y9eGg5l3NqnTSUfh8qMpTjM7L-lKDBw9Hql4/edit?usp=sharing',
+            icon: ClipboardList,
         },
         {
             title: 'Tautan Kelas',

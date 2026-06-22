@@ -31,14 +31,14 @@ class KrsSchedulingController extends Controller
      * Header kolom CSV yang diharapkan untuk setiap tipe master data.
      * Komentar pada kolom header dan logika import harus selalu sinkron.
      *
-     * Format dosen: nama_dosen, kode_mk, prioritas, max_sks
+     * Format dosen: nama_pendidik, kode_mp, prioritas, max_pj
      * Format ruang: kode_ruang, nama_ruang, kapasitas, jenis_ruang
      * Format waktu: jam_mulai, jam_selesai
-     * Format matakuliah: kode_mk, nama_mk, kelas, sks, jumlah_mahasiswa
+     * Format matakuliah: kode_mp, nama_mp, kelas, pj, jumlah_santri
      */
     private array $typeCsvHeaders = [
-        'matakuliah' => ['kode_mk', 'nama_mk', 'kelas', 'sks', 'jumlah_mahasiswa'],
-        'dosen'      => ['nama_dosen', 'kode_mk', 'prioritas', 'max_sks'],
+        'matakuliah' => ['kode_mp', 'nama_mp', 'kelas', 'pj', 'jumlah_santri'],
+        'dosen'      => ['nama_pendidik', 'kode_mp', 'prioritas', 'max_pj'],
         'ruang'      => ['kode_ruang', 'nama_ruang', 'kapasitas', 'jenis_ruang'],
         'waktu'      => ['jam_mulai', 'jam_selesai'],
     ];
@@ -245,6 +245,67 @@ class KrsSchedulingController extends Controller
         return redirect()->back()->with('success', "Data {$type} berhasil dihapus.");
     }
 
+    public function storeMasterData(Request $request)
+    {
+        $request->validate([
+            'period_id' => 'required|exists:krs_periods,id',
+            'type'      => 'required|in:matakuliah,dosen,ruang',
+        ]);
+
+        $type = $request->type;
+        $periodId = $request->period_id;
+
+        if ($type === 'matakuliah') {
+            $request->validate([
+                'kode_mp' => 'required|string|max:255',
+                'nama_mp' => 'required|string|max:255',
+                'kelas' => 'required|string|max:255',
+                'pj' => 'required|integer|min:1',
+            ]);
+            $mk = KrsMatakuliah::create([
+                'krs_period_id'    => $periodId,
+                'kode_mk'          => $request->kode_mp,
+                'nama_mk'          => $request->nama_mp,
+                'kelas'            => $request->kelas,
+                'sks'              => $request->pj,
+                'jumlah_mahasiswa' => null,
+            ]);
+            KrsJadwalPlot::create([
+                'krs_period_id'     => $periodId,
+                'krs_matakuliah_id' => $mk->id,
+                'is_conflict'       => false,
+                'conflict_message'  => null,
+            ]);
+        } elseif ($type === 'dosen') {
+            $request->validate([
+                'nama_pendidik' => 'required|string|max:255',
+                'kode_mp' => 'required|string|max:255',
+                'max_pj' => 'nullable|integer|min:1',
+            ]);
+            KrsDosen::create([
+                'krs_period_id' => $periodId,
+                'nama_dosen'    => $request->nama_pendidik,
+                'kode_mk'       => $request->kode_mp,
+                'prioritas'     => null,
+                'max_sks'       => $request->max_pj,
+            ]);
+        } elseif ($type === 'ruang') {
+            $request->validate([
+                'nama_ruang' => 'required|string|max:255',
+                'kapasitas' => 'required|integer|min:1',
+            ]);
+            KrsRuang::create([
+                'krs_period_id' => $periodId,
+                'kode_ruang'    => strtoupper(str_replace(' ', '_', $request->nama_ruang)),
+                'nama_ruang'    => $request->nama_ruang,
+                'kapasitas'     => $request->kapasitas,
+                'jenis_ruang'   => null,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Data master berhasil ditambahkan secara manual.');
+    }
+
     public function updateHariAktif(Request $request)
     {
         $request->validate([
@@ -378,7 +439,7 @@ class KrsSchedulingController extends Controller
 
         $callback = function () use ($plots, $waktus) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['Kode MK', 'Nama MK', 'Kelas', 'SKS', 'Dosen', 'Ruang', 'Hari', 'Jam', 'Status']);
+            fputcsv($file, ['Kode MP', 'Nama MP', 'Kelas', 'PJ', 'Pendidik', 'Ruang', 'Hari', 'Jam', 'Status']);
 
             foreach ($plots as $plot) {
                 $waktuStr = '';
@@ -421,7 +482,7 @@ class KrsSchedulingController extends Controller
             : null;
         $dosen->save();
 
-        return redirect()->back()->with('success', 'Batas SKS Dosen berhasil diperbarui.');
+        return redirect()->back()->with('success', 'Batas PJ Pendidik berhasil diperbarui.');
     }
 
     public function autoCalculateMaxSks(Request $request)
@@ -466,7 +527,7 @@ class KrsSchedulingController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Max SKS berhasil dihitung dan dibagikan secara otomatis!');
+        return redirect()->back()->with('success', 'Max PJ berhasil dihitung dan dibagikan secara otomatis!');
     }
 
     // =========================================================================

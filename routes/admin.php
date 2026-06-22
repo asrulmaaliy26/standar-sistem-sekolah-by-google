@@ -41,10 +41,6 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->only(['index', 'store', 'update', 'destroy'])
         ->names('jabatan');
 
-
-    // Pelanggaran Ujian
-    Route::get('pelanggaran', [\App\Http\Controllers\Admin\PelanggaranAdminController::class, 'index'])->name('pelanggaran.index');
-
 });
 
 /**
@@ -81,6 +77,7 @@ Route::middleware(['auth', 'verified', 'admin_akademik'])->prefix('admin')->name
     Route::post('krs/reset', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'resetPlot'])->name('krs.reset');
     Route::post('krs/reset-all', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'resetSemuaPlot'])->name('krs.reset_all');
     Route::get('krs/export', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'exportCsv'])->name('krs.export');
+    Route::post('krs/master-data', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'storeMasterData'])->name('krs.master_data.store');
     Route::post('krs/master-data/delete', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'destroyMasterData'])->name('krs.master_data.delete');
     Route::delete('krs/master-data/{type}/{id}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'destroySingleMasterData'])->name('krs.master_data.delete_single');
     Route::put('krs/master-data/dosen/{id}/max-sks', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateDosenMaxSks'])->name('krs.master_data.dosen.update_sks');
