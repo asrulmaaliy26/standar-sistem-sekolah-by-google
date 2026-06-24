@@ -112,6 +112,41 @@ class KrsSchedulingController extends Controller
             });
         }
 
+        $readiness_data = null;
+        if ($activePeriodId) {
+            $total_sks_mapel = $matakuliahs->sum('sks');
+            $total_kapasitas_guru = $dosens->sum('max_sks');
+            
+            $total_ruang_fisik = $ruangs->filter(function ($ruang) {
+                $nama = strtolower($ruang->nama_ruang);
+                return !str_contains($nama, 'daring') && !str_contains($nama, 'online');
+            })->count();
+            
+            $activePeriod = $periods->firstWhere('id', $activePeriodId);
+            $hari_aktif_count = $activePeriod && $activePeriod->hari_aktif && is_array($activePeriod->hari_aktif) && count($activePeriod->hari_aktif) > 0 
+                ? count($activePeriod->hari_aktif) 
+                : 6;
+                
+            $total_slot_waktu = $waktus->count() * $hari_aktif_count;
+            $total_kapasitas_ruang = $total_ruang_fisik * $total_slot_waktu;
+            
+            $total_guru = $dosens->unique(fn($d) => trim($d->nama_dosen))->count();
+            $slot_per_hari = $waktus->count();
+            
+            $readiness_data = [
+                'total_sks_mapel' => $total_sks_mapel,
+                'total_guru' => $total_guru,
+                'total_kapasitas_guru' => $total_kapasitas_guru,
+                'total_ruang_fisik' => $total_ruang_fisik,
+                'hari_aktif_count' => $hari_aktif_count,
+                'slot_per_hari' => $slot_per_hari,
+                'total_slot_waktu' => $total_slot_waktu,
+                'total_kapasitas_ruang' => $total_kapasitas_ruang,
+                'status_guru' => $total_sks_mapel <= $total_kapasitas_guru ? 'OK' : 'KURANG',
+                'status_ruang' => $total_sks_mapel <= $total_kapasitas_ruang ? 'OK' : 'KURANG',
+            ];
+        }
+
         return Inertia::render('Admin/Krs/Index', [
             'periods'       => $periods,
             'activePeriodId'=> (int) $activePeriodId,
@@ -120,6 +155,7 @@ class KrsSchedulingController extends Controller
             'dosens'        => $dosens,
             'ruangs'        => $ruangs,
             'waktus'        => $waktus,
+            'readiness_data'=> $readiness_data,
         ]);
     }
 
@@ -506,22 +542,12 @@ class KrsSchedulingController extends Controller
 
             if ($dosens->count() === 0) continue;
 
-            $filledDosens = $dosens->whereNotNull('max_sks');
-            $emptyDosens  = $dosens->whereNull('max_sks');
+            // Membagi rata ke SEMUA dosen (menimpa batas manual sebelumnya)
+            // agar dosen yang baru ditambahkan juga mendapat jatah kuota
+            $avgClasses = (int) ceil($totalClasses / $dosens->count());
+            $avgSks     = $avgClasses * $sksPerClass;
 
-            if ($emptyDosens->count() === 0) continue;
-
-            // Hitung berapa kelas yang sudah diambil oleh dosen dengan max_sks manual
-            $usedClasses = 0;
-            foreach ($filledDosens as $fd) {
-                $usedClasses += floor($fd->max_sks / $sksPerClass);
-            }
-
-            $remainingClasses = max(0, $totalClasses - $usedClasses);
-            $avgClasses       = (int) ceil($remainingClasses / $emptyDosens->count());
-            $avgSks           = $avgClasses * $sksPerClass;
-
-            foreach ($emptyDosens as $d) {
+            foreach ($dosens as $d) {
                 $d->max_sks = $avgSks;
                 $d->save();
             }

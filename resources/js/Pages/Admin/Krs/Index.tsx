@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Head, useForm, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Download, Upload, Play, RefreshCw, Trash2, Edit, Plus, Search, Check, AlertCircle, BookOpen, Users, MapPin, Clock, ArrowRight, Calculator } from 'lucide-react';
@@ -19,7 +20,7 @@ interface Plot {
     waktu_details?: { id: number, hari: string, jam_mulai: string, jam_selesai: string }[];
 }
 
-export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, dosens, ruangs, waktus }: any) {
+export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, dosens, ruangs, waktus, readiness_data }: any) {
     const { data: periodData, setData: setPeriodData, post: postPeriod } = useForm({
         tahun_akademik: '',
         semester: 'Ganjil'
@@ -46,6 +47,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('Semua');
+    const [activeTab, setActiveTab] = useState<'mapel' | 'dosen'>('mapel');
 
     const [genJamMulai, setGenJamMulai] = useState("07:00");
     const [genDurasi, setGenDurasi] = useState(40);
@@ -288,7 +290,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                     <div className="mb-4">
                                         <span className="text-3xl font-bold">{s.count}</span>
                                     </div>
-                                    <button onClick={() => setViewMasterData(s.id)} className="text-sm font-medium text-primary hover:text-primary/80 flex items-center group w-fit">
+                                    <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setViewMasterData(s.id); }} className="text-sm font-medium text-primary hover:text-primary/80 flex items-center group w-fit">
                                         {s.id === 'waktu' ? 'Kelola Waktu' : 'Lihat Data'} <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                                     </button>
                                 </div>
@@ -321,8 +323,48 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             </form>
                         </div>
 
+                        {/* Readiness Analysis */}
+                        {readiness_data && (
+                            <div className="bg-card text-card-foreground p-6 rounded-xl shadow-sm border border-border mb-6">
+                                <h2 className="font-semibold flex items-center gap-2 mb-4"><Calculator className="w-5 h-5"/> Analisis Kesiapan Data</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className={`p-4 rounded-lg border ${readiness_data.status_guru === 'KURANG' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800'}`}>
+                                        <h3 className="font-medium flex items-center gap-2 mb-2">
+                                            {readiness_data.status_guru === 'KURANG' ? <AlertCircle className="w-4 h-4 text-red-500" /> : <Check className="w-4 h-4 text-emerald-500" />}
+                                            Kesiapan Pendidik
+                                        </h3>
+                                        <p className="text-sm mb-1">Total Kebutuhan: <span className="font-bold">{readiness_data.total_sks_mapel} SKS</span></p>
+                                        <p className="text-sm mb-2">Total Kapasitas Pendidik: <span className="font-bold">{readiness_data.total_kapasitas_guru} Max SKS</span> ({readiness_data.total_guru} Pendidik)</p>
+                                        {readiness_data.status_guru === 'KURANG' && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-2"><strong>Peringatan:</strong> Kekurangan Kapasitas Pendidik! Plotting otomatis akan gagal menemukan pendidik untuk beberapa mapel. Gunakan fitur 'Bagi Rata PJ Otomatis' di menu Kelola Pendidik terlebih dahulu.</p>
+                                        )}
+                                        {readiness_data.status_guru === 'OK' && (
+                                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">Kapasitas SKS pendidik secara total mencukupi.</p>
+                                        )}
+                                    </div>
+                                    <div className={`p-4 rounded-lg border ${readiness_data.status_ruang === 'KURANG' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' : 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'}`}>
+                                        <h3 className="font-medium flex items-center gap-2 mb-2">
+                                            {readiness_data.status_ruang === 'KURANG' ? <AlertCircle className="w-4 h-4 text-red-500" /> : <Check className="w-4 h-4 text-blue-500" />}
+                                            Kesiapan Ruangan Fisik
+                                        </h3>
+                                        <p className="text-sm mb-1">Total Kebutuhan: <span className="font-bold">{readiness_data.total_sks_mapel} Slot</span></p>
+                                        <p className="text-sm mb-2">
+                                            Total Kapasitas Fisik: <span className="font-bold">{readiness_data.total_kapasitas_ruang} Slot</span> 
+                                            <br/><span className="text-xs text-muted-foreground">({readiness_data.total_ruang_fisik} Ruang Fisik × {readiness_data.hari_aktif_count} Hari Aktif × {readiness_data.slot_per_hari} JP/Hari)</span>
+                                        </p>
+                                        {readiness_data.status_ruang === 'KURANG' && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-2"><strong>Peringatan:</strong> Ruangan fisik tidak cukup untuk menampung seluruh SKS. Plotting otomatis akan kesulitan, gunakan 'Ruang Daring' secara manual untuk sisanya.</p>
+                                        )}
+                                        {readiness_data.status_ruang === 'OK' && (
+                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Ruangan fisik sangat mencukupi.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Actions */}
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 mb-6">
                             <button onClick={handlePlot} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded flex items-center gap-2 shadow">
                                 <Play className="w-4 h-4"/> Plot Otomatis
                             </button>
@@ -337,10 +379,20 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             </button>
                         </div>
 
-                        {/* Table */}
-                        <div className="bg-card text-card-foreground rounded-xl shadow-sm border border-border overflow-x-auto">
-                            
-                            {/* Search & Filter */}
+                        {/* Tabs */}
+                        <div className="flex gap-6 mb-4 border-b border-border px-2">
+                            <button className={`pb-2 font-semibold transition-colors ${activeTab === 'mapel' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setActiveTab('mapel')}>
+                                Berdasarkan Kelas/Mapel
+                            </button>
+                            <button className={`pb-2 font-semibold transition-colors ${activeTab === 'dosen' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`} onClick={() => setActiveTab('dosen')}>
+                                Berdasarkan Pendidik
+                            </button>
+                        </div>
+
+                        {/* Table or Grouped View */}
+                        {activeTab === 'mapel' && (
+                            <div className="bg-card text-card-foreground rounded-xl shadow-sm border border-border overflow-x-auto">
+                                {/* Search & Filter */}
                             <div className="flex flex-col md:flex-row gap-4 p-4 border-b border-border bg-muted/20">
                                 <div className="relative flex-1 max-w-md">
                                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -450,12 +502,171 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 </tbody>
                             </table>
                         </div>
+                        )}
+
+                        {activeTab === 'dosen' && (
+                            <div className="space-y-6">
+                                {(() => {
+                                    const groups = new Map();
+                                    
+                                    // Prepare groups by nama_dosen
+                                    dosens?.forEach((d: any) => {
+                                        const name = d.nama_dosen.trim();
+                                        if (!groups.has(name)) {
+                                            groups.set(name, { nama_dosen: name, plots: [], unplotted: [], totalSks: 0, maxSks: 0, hasUnbounded: false, dosenMap: new Map() });
+                                        }
+                                        const g = groups.get(name);
+                                        g.dosenMap.set(d.kode_mk, d.id);
+                                        if (d.max_sks === null || d.max_sks === undefined) {
+                                            g.hasUnbounded = true;
+                                        } else {
+                                            g.maxSks += Number(d.max_sks);
+                                        }
+                                    });
+                                    groups.set('belum', { nama_dosen: 'Belum Ditentukan / Kosong', plots: [], unplotted: [], totalSks: 0, maxSks: 0, hasUnbounded: true, dosenMap: new Map() });
+
+                                    // Fill plots
+                                    plots?.forEach((p: Plot) => {
+                                        let name = 'Belum Ditentukan / Kosong';
+                                        let isUnplotted = !p.krs_dosen_id || !p.hari || !p.krs_waktu_ids || p.krs_waktu_ids.length === 0;
+
+                                        if (p.krs_dosen_id && p.dosen) {
+                                            name = p.dosen.nama_dosen.trim();
+                                        } else if (p.krs_dosen_id) {
+                                            const d = dosens?.find((d: any) => d.id === p.krs_dosen_id);
+                                            if (d) name = d.nama_dosen.trim();
+                                            else name = 'Tidak Diketahui';
+                                        }
+
+                                        if (p.krs_dosen_id) {
+                                            if (!groups.has(name)) {
+                                                groups.set(name, { nama_dosen: name, plots: [], unplotted: [], totalSks: 0, maxSks: 0, hasUnbounded: true, dosenMap: new Map() });
+                                            }
+                                            const g = groups.get(name);
+                                            g.plots.push(p);
+                                            g.totalSks += p.matakuliah.sks;
+                                        } else {
+                                            // Plot is fully unassigned to any dosen
+                                            // Assign it to the "belum" group's plots
+                                            groups.get('belum').plots.push(p);
+
+                                            // Also find all dosens that COULD teach this
+                                            const eligibleDosens = dosens?.filter((d: any) => d.kode_mk === p.matakuliah.kode_mk) || [];
+                                            eligibleDosens.forEach((d: any) => {
+                                                const dName = d.nama_dosen.trim();
+                                                if (groups.has(dName)) {
+                                                    groups.get(dName).unplotted.push({ ...p, suggested_dosen_id: d.id });
+                                                }
+                                            });
+                                        }
+                                    });
+
+                                    // Convert to array and filter out empty dosens unless they have plots or a specific max_sks limit
+                                    return Array.from(groups.values())
+                                        .filter(g => g.plots.length > 0 || g.maxSks > 0)
+                                        .map((g, idx) => {
+                                            const limitText = g.hasUnbounded ? '∞' : g.maxSks;
+                                            const isOverLimit = !g.hasUnbounded && g.totalSks > g.maxSks;
+                                            
+                                            return (
+                                            <div key={idx} className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                                                <div className="bg-muted/30 px-4 py-3 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                                                    <h3 className="font-bold text-lg">{g.nama_dosen}</h3>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-sm">Batas Total: <strong>{limitText} SKS</strong></span>
+                                                        <span className={`text-sm px-2.5 py-1 rounded-full font-medium ${isOverLimit ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}`}>
+                                                            Terplot: {g.totalSks} SKS
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left border-collapse text-sm">
+                                                        <thead className="bg-muted/50 text-muted-foreground border-b border-border">
+                                                            <tr>
+                                                                <th className="p-3">Kode MP</th>
+                                                                <th className="p-3">Nama MP</th>
+                                                                <th className="p-3">Kelas</th>
+                                                                <th className="p-3">SKS</th>
+                                                                <th className="p-3">Jadwal & Ruang</th>
+                                                                <th className="p-3">Aksi</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {g.plots.length === 0 ? (
+                                                                <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Belum ada kelas yang diplot untuk pendidik ini.</td></tr>
+                                                            ) : g.plots.map((p: Plot) => (
+                                                                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                                                                    <td className="p-3 font-medium">{p.matakuliah.kode_mk}</td>
+                                                                    <td className="p-3">{p.matakuliah.nama_mk}</td>
+                                                                    <td className="p-3">{p.matakuliah.kelas}</td>
+                                                                    <td className="p-3">{p.matakuliah.sks}</td>
+                                                                    <td className="p-3">
+                                                                        {p.hari && p.waktu_details && p.waktu_details.length > 0 ? (
+                                                                            <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-semibold">
+                                                                                {p.hari}, {p.waktu_details[0].jam_mulai} - {p.waktu_details[p.waktu_details.length-1].jam_selesai}
+                                                                                <span className="ml-1 text-muted-foreground font-normal">({p.ruang?.nama_ruang || '-'})</span>
+                                                                            </span>
+                                                                        ) : <span className="text-muted-foreground italic text-xs">Belum diplot</span>}
+                                                                    </td>
+                                                                    <td className="p-3">
+                                                                        <button onClick={() => {
+                                                                            if (confirm(`Yakin ingin mereset plot kelas ${p.matakuliah.nama_mk} (${p.matakuliah.kelas})? Pendidik, ruangan, dan waktu akan dikosongkan.`)) {
+                                                                                router.put(route('admin.krs.plot.update', p.id), {
+                                                                                    krs_dosen_id: null,
+                                                                                    krs_ruang_id: null,
+                                                                                    hari: null,
+                                                                                    krs_waktu_ids: []
+                                                                                }, { preserveScroll: true });
+                                                                            }
+                                                                        }} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 transition-colors" title="Kosongkan (Reset) Kelas Ini">
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                            {g.unplotted && g.unplotted.length > 0 && (
+                                                                <>
+                                                                    <tr className="bg-muted/10"><td colSpan={6} className="p-3 font-semibold text-muted-foreground border-b border-border">Mapel Yang Belum Diplot (Bisa Diambil)</td></tr>
+                                                                    {g.unplotted.map((p: any) => (
+                                                                        <tr key={`un-${p.id}`} className="border-b border-border last:border-0 hover:bg-muted/30 opacity-70">
+                                                                            <td className="p-3 font-medium">{p.matakuliah.kode_mk}</td>
+                                                                            <td className="p-3">{p.matakuliah.nama_mk}</td>
+                                                                            <td className="p-3">{p.matakuliah.kelas}</td>
+                                                                            <td className="p-3">{p.matakuliah.sks}</td>
+                                                                            <td className="p-3 text-red-500 font-medium text-xs">Belum Ada Dosen & Jadwal</td>
+                                                                            <td className="p-3">
+                                                                                <button onClick={() => {
+                                                                                    setEditPlot(p);
+                                                                                    setEditData({
+                                                                                        krs_dosen_id: p.suggested_dosen_id || '',
+                                                                                        krs_ruang_id: p.krs_ruang_id || '',
+                                                                                        hari: p.hari || '',
+                                                                                        krs_waktu_ids: p.krs_waktu_ids || []
+                                                                                    });
+                                                                                    setEditTimes([]);
+                                                                                }} className="px-2 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded hover:bg-primary/90">
+                                                                                    Plot Manual
+                                                                                </button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    });
+                                })()}
+                            </div>
+                        )}
                     </>
                 )}
 
                 {/* Edit Modal */}
-                {editPlot && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                {editPlot && typeof document !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto">
                         <div className="bg-card text-card-foreground border border-border rounded-xl p-6 w-full max-w-4xl shadow-2xl relative max-h-[90vh] flex flex-col">
                             <h3 className="font-bold text-xl mb-2">Edit Plot Manual</h3>
                             <p className="text-sm text-muted-foreground mb-6">Mapel: <span className="font-bold text-foreground">{editPlot.matakuliah.kode_mk} - {editPlot.matakuliah.nama_mk} ({editPlot.matakuliah.sks} PJ)</span></p>
@@ -603,13 +814,14 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 </div>
                             </form>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
                 {/* Master Data View Modal */}
-                {viewMasterData && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                        <div className="bg-background text-foreground border border-border rounded-xl shadow-2xl w-[700px] max-w-[95vw] flex flex-col max-h-[90vh]">
+                {viewMasterData && typeof document !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm">
+                        <div className="bg-background text-foreground border border-border rounded-xl shadow-2xl w-[700px] max-w-[95vw] flex flex-col max-h-[90vh] relative z-[10000]">
                             <div className="p-6 border-b border-border flex justify-between items-center">
                                 <div className="flex items-center gap-4">
                                     <h3 className="font-bold text-lg capitalize">Data Master: {viewMasterData}</h3>
@@ -618,7 +830,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                             {viewMasterData === 'dosen' && (
                                                 <button 
                                                     onClick={() => {
-                                                        if (confirm('Sistem akan menghitung total PJ dari setiap Mapel dan membaginya rata kepada semua pendidik pengampu yang batas PJ-nya belum diisi. Lanjutkan?')) {
+                                                        if (confirm('Sistem akan menghitung ulang total PJ dari setiap Mapel dan membaginya rata kepada SEMUA pendidik pengampu secara adil (peringatan: batas PJ manual yang sudah ada akan tertimpa). Lanjutkan?')) {
                                                             router.post(route('admin.krs.master_data.dosen.auto_sks'), {
                                                                 period_id: activePeriodId
                                                             }, {
@@ -747,13 +959,23 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                             </button>
                                         </form>
 
-                                        <h4 className="font-bold mt-8 mb-4">Daftar Waktu Tersimpan ({waktus.length})</h4>
+                                        <div className="flex items-center justify-between mt-8 mb-4">
+                                            <h4 className="font-bold">Daftar Waktu Tersimpan ({waktus.length})</h4>
+                                        </div>
+                                        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 rounded-lg text-sm flex gap-2 items-start">
+                                            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <strong>Peringatan Penting:</strong> Daftar di bawah ini <u>hanya boleh</u> berisi jam pelajaran (JP) efektif. 
+                                                <strong> JANGAN memasukkan/menambah baris khusus untuk Jam Istirahat.</strong> 
+                                                <br/>(Jam Istirahat cukup diatur pada form generator di atas, dan sistem akan otomatis melompatinya tanpa perlu dibuatkan slot).
+                                            </div>
+                                        </div>
                                         <table className="w-full text-left border-collapse text-sm bg-background border border-border rounded-lg overflow-hidden">
                                             <thead className="bg-muted text-muted-foreground border-b border-border">
                                                 <tr><th className="p-3">Jam Mulai</th><th className="p-3">Jam Selesai</th><th className="p-3">Aksi</th></tr>
                                             </thead>
                                             <tbody>
-                                                {waktus.map((w: any) => (
+                                                {waktus?.map((w: any) => (
                                                     <tr key={w.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                                                         <td className="p-3">{w.jam_mulai}</td>
                                                         <td className="p-3">{w.jam_selesai}</td>
@@ -762,7 +984,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {waktus.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-muted-foreground">Belum ada waktu di-generate.</td></tr>}
+                                                {(!waktus || waktus.length === 0) && <tr><td colSpan={3} className="p-4 text-center text-muted-foreground">Belum ada waktu di-generate.</td></tr>}
                                             </tbody>
                                         </table>
                                     </div>
@@ -774,7 +996,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                             {viewMasterData === 'ruang' && <tr><th className="p-3">Nama Ruang</th><th className="p-3">Kapasitas</th><th className="p-3">Aksi</th></tr>}
                                         </thead>
                                         <tbody>
-                                            {viewMasterData === 'matakuliah' && matakuliahs.map((m: any) => (
+                                            {viewMasterData === 'matakuliah' && matakuliahs?.map((m: any) => (
                                                 <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                                                     <td className="p-3 font-medium">{m.kode_mk}</td><td className="p-3">{m.nama_mk}</td><td className="p-3">{m.kelas}</td><td className="p-3">{m.sks}</td>
                                                     <td className="p-3"><button onClick={() => handleDeleteMasterData('matakuliah', m.id)} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded"><Trash2 className="w-4 h-4"/></button></td>
@@ -808,8 +1030,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     </td>
                                                 </tr>
                                             )}
-                                            {viewMasterData === 'dosen' && dosens.map((d: any) => {
-                                                const mk = matakuliahs.find((m: any) => m.kode_mk === d.kode_mk);
+                                            {viewMasterData === 'dosen' && dosens?.map((d: any) => {
+                                                const mk = matakuliahs?.find((m: any) => m.kode_mk === d.kode_mk);
                                                 return (
                                                     <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                                                         <td className="p-3 font-medium">{d.nama_dosen}</td>
@@ -862,7 +1084,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     </td>
                                                 </tr>
                                             )}
-                                            {viewMasterData === 'ruang' && ruangs.map((r: any) => (
+                                            {viewMasterData === 'ruang' && ruangs?.map((r: any) => (
                                                 <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                                                     <td className="p-3 font-medium">{r.nama_ruang}</td><td className="p-3">{r.kapasitas}</td>
                                                     <td className="p-3"><button onClick={() => handleDeleteMasterData('ruang', r.id)} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded"><Trash2 className="w-4 h-4"/></button></td>
@@ -898,7 +1120,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 <button onClick={() => setViewMasterData(null)} className="px-4 py-2 border border-input hover:bg-muted text-foreground rounded transition-colors">Tutup</button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </div>
         </AppLayout>

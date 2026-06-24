@@ -17,7 +17,10 @@ class KrsPlottingService
     {
         $period = KrsPeriod::findOrFail($periodId);
         // Get all matakuliah for the period
-        $matakuliahs = KrsMatakuliah::where('krs_period_id', $periodId)->get();
+        // CACAT 1 FIX: Sort by SKS desc so large blocks are plotted first
+        $matakuliahs = KrsMatakuliah::where('krs_period_id', $periodId)
+            ->orderBy('sks', 'desc')
+            ->get();
 
         // Data that tracks current usage
         $dosenUsage = []; // dosen_id => used sks
@@ -29,9 +32,20 @@ class KrsPlottingService
         // $dosenTimeUsage[hari][dosen_id][waktu_id] = true
         $dosenTimeUsage = [];
 
+        // Track global load for distribution (Pemerataan)
+        $dayLoad = [];
+        $roomLoad = [];
+
         // Preload existing plots to populate usage (if any remain)
         $existingPlots = KrsJadwalPlot::where('krs_period_id', $periodId)->get();
         foreach ($existingPlots as $plot) {
+            // CACAT 3 FIX: Only preload usage if the plot is perfectly scheduled.
+            // If it's a conflict or incomplete, plotAuto will REPLOT it, 
+            // so we must NOT count its SKS/usage now, otherwise it double counts!
+            if ($plot->is_conflict || !$plot->krs_waktu_ids || !$plot->krs_ruang_id) {
+                continue;
+            }
+
             $h = $plot->hari;
             if ($plot->krs_dosen_id) {
                 if (!isset($dosenUsage[$plot->krs_dosen_id])) $dosenUsage[$plot->krs_dosen_id] = 0;
@@ -46,7 +60,11 @@ class KrsPlottingService
             if ($plot->krs_ruang_id && $plot->krs_waktu_ids && $h) {
                 foreach ($plot->krs_waktu_ids as $wId) {
                     $roomUsage[$h][$plot->krs_ruang_id][$wId] = true;
+                    $roomLoad[$plot->krs_ruang_id] = ($roomLoad[$plot->krs_ruang_id] ?? 0) + 1;
                 }
+            }
+            if ($h && $plot->krs_waktu_ids) {
+                $dayLoad[$h] = ($dayLoad[$h] ?? 0) + count($plot->krs_waktu_ids);
             }
         }
 
@@ -61,7 +79,11 @@ class KrsPlottingService
             ? $period->hari_aktif 
             : ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
-        $ruangs = KrsRuang::where('krs_period_id', $periodId)->get();
+        $ruangs = KrsRuang::where('krs_period_id', $periodId)->get()
+            ->filter(function ($ruang) {
+                $nama = strtolower($ruang->nama_ruang);
+                return !str_contains($nama, 'daring') && !str_contains($nama, 'online');
+            });
 
         foreach ($matakuliahs as $mk) {
             // Check if already plotted and NOT in conflict
@@ -76,63 +98,65 @@ class KrsPlottingService
                 ->get()
                 ->sortBy('prioritas'); // Sort by prioritas so if SKS is equal, priority wins
 
-            $selectedDosen = null;
-            $minSks = PHP_INT_MAX;
+            // Sort eligible dosens by current usage so we prioritize the one with least SKS
+            $dosensList = $eligibleDosens->filter(function($d) use ($dosenUsage, $mk) {
+                $currentSks = $dosenUsage[$d->id] ?? 0;
+                return $d->max_sks === null || ($currentSks + $mk->sks) <= $d->max_sks;
+            })->sortBy(function($d) use ($dosenUsage) {
+                return $dosenUsage[$d->id] ?? 0;
+            })->values();
 
-            foreach ($eligibleDosens as $dosen) {
-                $currentSks = $dosenUsage[$dosen->id] ?? 0;
-                
-                // Cek apakah masih dalam batas max_sks (jika max_sks diset)
-                if ($dosen->max_sks === null || ($currentSks + $mk->sks) <= $dosen->max_sks) {
-                    // Pilih dosen yang beban SKS-nya Paling Sedikit saat ini untuk pemerataan
-                    if ($currentSks < $minSks) {
-                        $minSks = $currentSks;
-                        $selectedDosen = $dosen;
-                    }
-                }
-            }
-
-            $targetMinutes = $mk->sks * 50;
+            $targetSlots = $mk->sks; // 1 SKS = 1 Slot (JP)
             $selectedWaktuIds = [];
             $selectedRuang = null;
             $selectedHari = null;
             $isConflict = false;
             $conflictMsg = [];
+            $selectedDosen = null;
 
-            if (!$selectedDosen) {
+            if ($dosensList->isEmpty()) {
                 $isConflict = true;
-                $conflictMsg[] = "Dosen tidak tersedia atau melebihi beban maksimal.";
+                $conflictMsg[] = "Tidak ada pendidik yang tersedia atau semua melebihi beban maksimal.";
             }
 
             $reasonNoContinuousTime = true;
             $reasonRoomFull = false;
-
-            // Find continuous timeslots that equal targetMinutes
             $foundTime = false;
-            if ($selectedDosen) {
-                foreach ($hariList as $hari) {
+
+            // Sort days by least usage (Pemerataan Hari)
+            $sortedHariList = $hariList;
+            usort($sortedHariList, fn($a, $b) => ($dayLoad[$a] ?? 0) <=> ($dayLoad[$b] ?? 0));
+
+            // CACAT 2 FIX: Fallback Dosen loop
+            foreach ($dosensList as $dosen) {
+                if ($foundTime) break;
+                
+                foreach ($sortedHariList as $hari) {
                     if ($foundTime) break;
                     
                     for ($i = 0; $i < count($waktus); $i++) {
                         $currentBlockIds = [];
-                        $accumulatedMinutes = 0;
                         
                         for ($j = $i; $j < count($waktus); $j++) {
                             $w = $waktus[$j];
                             
                             // Check if dosen is available at this time
-                            if (isset($dosenTimeUsage[$hari][$selectedDosen->id][$w->id])) {
+                            if (isset($dosenTimeUsage[$hari][$dosen->id][$w->id])) {
                                 break; // Dosen is busy, break the continuous block
                             }
 
                             $currentBlockIds[] = $w->id;
-                            $accumulatedMinutes += $w->durasi_menit;
 
-                            if ($accumulatedMinutes == $targetMinutes) {
+                            if (count($currentBlockIds) == $targetSlots) {
                                 $reasonNoContinuousTime = false; // Found a block where dosen is free
+                                
+                                // Sort rooms by least usage (Pemerataan Ruang)
+                                $sortedRuangs = [...$ruangs];
+                                usort($sortedRuangs, fn($a, $b) => ($roomLoad[$a->id] ?? 0) <=> ($roomLoad[$b->id] ?? 0));
+                                
                                 // Find a room available for all these time blocks
                                 $foundRoom = false;
-                                foreach ($ruangs as $ruang) {
+                                foreach ($sortedRuangs as $ruang) {
                                     $roomAvailable = true;
                                     foreach ($currentBlockIds as $bwId) {
                                         if (isset($roomUsage[$hari][$ruang->id][$bwId])) {
@@ -145,6 +169,7 @@ class KrsPlottingService
                                         $selectedRuang = $ruang;
                                         $selectedWaktuIds = $currentBlockIds;
                                         $selectedHari = $hari;
+                                        $selectedDosen = $dosen;
                                         $foundTime = true;
                                         $foundRoom = true;
                                         break;
@@ -153,9 +178,7 @@ class KrsPlottingService
                                 if (!$foundRoom) {
                                     $reasonRoomFull = true;
                                 }
-                                if ($foundTime) break;
-                            } else if ($accumulatedMinutes > $targetMinutes) {
-                                break; // Exceeded, invalid block
+                                break; // Target reached (either room found or all rooms full for this block)
                             }
                         }
                         if ($foundTime) break;
@@ -163,15 +186,18 @@ class KrsPlottingService
                 }
             }
 
-            if ($selectedDosen && !$foundTime) {
+            if (!$foundTime && $dosensList->isNotEmpty()) {
                 $isConflict = true;
                 if ($reasonNoContinuousTime) {
-                    $conflictMsg[] = "Dosen ({$selectedDosen->nama_dosen}) tidak memiliki sisa jadwal kosong berurutan sebanyak {$mk->sks} SKS berturut-turut.";
+                    $conflictMsg[] = "Semua pendidik yang tersedia tidak memiliki sisa jadwal kosong berurutan sebanyak {$mk->sks} SKS berturut-turut.";
                 } else if ($reasonRoomFull) {
                     $conflictMsg[] = "Dosen tersedia, namun semua Ruangan penuh pada jam tersebut.";
                 } else {
                     $conflictMsg[] = "Waktu/Ruang tidak tersedia.";
                 }
+                
+                // Set to the best attempted dosen even if failed, so the manual plot knows who was attempted
+                $selectedDosen = $dosensList->first();
             }
 
             if ($existingPlot) {
@@ -207,6 +233,9 @@ class KrsPlottingService
                     foreach ($selectedWaktuIds as $wId) {
                         $dosenTimeUsage[$selectedHari][$selectedDosen->id][$wId] = true;
                         $roomUsage[$selectedHari][$selectedRuang->id][$wId] = true;
+                        
+                        $dayLoad[$selectedHari] = ($dayLoad[$selectedHari] ?? 0) + 1;
+                        $roomLoad[$selectedRuang->id] = ($roomLoad[$selectedRuang->id] ?? 0) + 1;
                     }
                 }
             }
