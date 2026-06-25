@@ -1,24 +1,28 @@
-Ruang,Ruang
-ARI.Y.101,ARI.Y.101
-ARI.Y.102 ,ARI.Y.102 
-ARI.Y.103,ARI.Y.103
-ARI.Y.104,ARI.Y.104
-B.112,B.112
-B.113,B.113
-B.212,B.212
-B.213,B.213
-B.214,B.214
-B.312,B.312
-B.313,B.313
-ITC.I.1,ITC.I.1
-ITC.I.2,ITC.I.2
-ITC.I.4,ITC.I.4
-ITC.I.5,ITC.I.5
-ITC.I.6,ITC.I.6
-Laboratorium Klasikal,Laboratorium Klasikal
-RV Psikologi 1,RV Psikologi 1
-RV Psikologi 2,RV Psikologi 2
-RV Psikologi 3,RV Psikologi 3
-RV Psikologi 4,RV Psikologi 4
-RV Psikologi 5,RV Psikologi 5
-RV Psikologi 6,RV Psikologi 6
+No,Ruang,kapasitas
+1,ARI.R. 101,Besar
+2,ARI.R. 102,Besar
+3,ARI.R. 103,Besar
+4,ARI.R. 104,Besar
+5,ARI.R. 105,Besar
+6,ARI.R. 201,Besar
+7,ARI.R. 202,Besar
+8,ARI.R. 203,Besar
+9,ARI.R. 204,Besar
+11,ARI.R. 205,Besar
+,ARI.R. 206,Besar
+,ARI.R. 207,Besar
+,ARI.R. 208,Besar
+,ARI.R. 209,Besar
+,ARI.R. 210,Kecil
+,ARI.R. 211,Kecil
+,ARI.R. 212,Kecil
+,ARI.R. 213,Kecil
+,ARI.R. 214,Kecil
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+,,

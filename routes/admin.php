@@ -64,7 +64,12 @@ Route::middleware(['auth', 'verified', 'admin_akademik'])->prefix('admin')->name
     Route::post('guru/{guru}/links', [GuruAkademikController::class, 'storeLink'])->name('guru.store-link');
     Route::put('guru/links/{link}', [GuruAkademikController::class, 'updateLink'])->name('guru.update-link');
     Route::delete('guru/links/{link}', [GuruAkademikController::class, 'destroyLink'])->name('guru.destroy-link');
+});
 
+/**
+ * Ploting KRS Routes (Accessible by admin akademik & admin penjadwalan)
+ */
+Route::middleware(['auth', 'verified', 'role:admin akademik,admin penjadwalan,superadmin'])->prefix('admin')->name('admin.')->group(function () {
     // Ploting KRS
     Route::get('krs', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'index'])->name('krs.index');
     Route::post('krs/period', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'storePeriod'])->name('krs.period.store');
@@ -73,6 +78,7 @@ Route::middleware(['auth', 'verified', 'admin_akademik'])->prefix('admin')->name
     Route::post('krs/import', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'importCsv'])->name('krs.import');
     Route::post('krs/waktu/generate', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'generateWaktu'])->name('krs.waktu.generate');
     Route::post('krs/plot', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'plotOtomatis'])->name('krs.plot');
+    Route::post('krs/plot-stream', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'plotOtomatisStream'])->name('krs.plot-stream');
     Route::put('krs/plot/{id}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updatePlot'])->name('krs.plot.update');
     Route::post('krs/reset', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'resetPlot'])->name('krs.reset');
     Route::post('krs/reset-all', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'resetSemuaPlot'])->name('krs.reset_all');

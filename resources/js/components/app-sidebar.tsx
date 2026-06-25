@@ -38,10 +38,15 @@ export function AppSidebar() {
     // Dapatkan nav items berdasarkan mode aktif
     const modeNavItems = getNavItemsByMode(activeMode.type, activeMode.value);
 
-    // Sembunyikan menu Pengarsipan khusus untuk murid
-    const filteredCommonNavItems = commonNavItems.filter(item => 
-        !(activeMode.type === 'role' && activeMode.value === 'murid' && item.title === 'Pengarsipan')
-    );
+    // Sembunyikan menu Pengarsipan khusus untuk murid dan admin penjadwalan
+    const filteredCommonNavItems = commonNavItems.filter(item => {
+        if (item.title === 'Pengarsipan') {
+            if (activeMode.type === 'role' && (activeMode.value === 'murid' || activeMode.value === 'admin penjadwalan')) {
+                return false;
+            }
+        }
+        return true;
+    });
 
     return (
         <Sidebar collapsible="icon" variant="inset">

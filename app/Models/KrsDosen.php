@@ -13,6 +13,7 @@ class KrsDosen extends Model
         'krs_period_id',
         'nama_dosen',
         'kode_mk',
+        'kelas',
         'prioritas',
         'max_sks',
     ];

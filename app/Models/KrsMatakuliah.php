@@ -15,7 +15,7 @@ class KrsMatakuliah extends Model
         'nama_mk',
         'kelas',
         'sks',
-        'jumlah_mahasiswa',
+        'jenis_ruang',
     ];
 
     public function period()

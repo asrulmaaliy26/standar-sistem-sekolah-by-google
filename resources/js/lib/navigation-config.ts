@@ -131,6 +131,19 @@ export const roleNavigation: Record<string, NavItem[]> = {
         },
     ],
 
+    'admin penjadwalan': [
+        {
+            title: 'Dashboard',
+            href: '/admin/dashboard',
+            icon: LayoutDashboard,
+        },
+        {
+            title: 'Ploting Jadwal',
+            href: '/admin/krs',
+            icon: CalendarCheck,
+        },
+    ],
+
     guru: [
         {
             title: 'Kalender Kegiatan',
