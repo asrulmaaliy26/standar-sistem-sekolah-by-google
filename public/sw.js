@@ -20,8 +20,8 @@ const APP_SHELL_ASSETS = [
     '/favicon.ico',
     '/favicon.svg',
     '/apple-touch-icon.png',
-    '/icons/icon-192x192.png',
-    '/icons/icon-512x512.png',
+    '/pwa-icons/icon-192x192.png',
+    '/pwa-icons/icon-512x512.png',
 ];
 
 // ─── Install ────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ self.addEventListener('fetch', (event) => {
 
     // ── Strategi: Cache First (gambar & ikon) ────────────────────────────────
     if (
-        url.pathname.startsWith('/icons/') ||
+        url.pathname.startsWith('/pwa-icons/') ||
         url.pathname.startsWith('/images/') ||
         /\.(png|jpg|jpeg|gif|svg|webp|ico)$/.test(url.pathname)
     ) {

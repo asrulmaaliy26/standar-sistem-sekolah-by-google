@@ -61,7 +61,7 @@ export function PwaInstallPrompt() {
 
                 {/* Ikon app */}
                 <img
-                    src="/icons/icon-96x96.png"
+                    src="/pwa-icons/icon-96x96.png"
                     alt="Smart LPI"
                     className="ml-2 h-12 w-12 shrink-0 rounded-xl object-cover shadow-sm"
                 />
