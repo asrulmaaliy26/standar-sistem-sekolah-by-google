@@ -994,7 +994,9 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                 </div>
                                                 <div className="flex justify-between text-[10px] italic mt-1 text-gray-500">
                                                     <span>Sisa Nganggur:</span>
-                                                    <span>{capBesarOverall - butuhBesarTotal} Slot</span>
+                                                    <span className={capBesarOverall > 0 && (capBesarOverall - butuhBesarTotal) < (capBesarOverall * 0.15) ? 'text-red-600 font-bold' : ''}>
+                                                        {capBesarOverall - butuhBesarTotal} Slot {capBesarOverall > 0 && (capBesarOverall - butuhBesarTotal) < (capBesarOverall * 0.15) && '(Sangat Mepet, Rawan Fragmentasi)'}
+                                                    </span>
                                                 </div>
                                             </div>
 
@@ -1012,7 +1014,9 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                 </div>
                                                 <div className="flex justify-between text-[10px] italic mt-1 text-gray-500">
                                                     <span>Sisa Nganggur:</span>
-                                                    <span>{capKecilOverall - butuhKecilTotal} Slot</span>
+                                                    <span className={capKecilOverall > 0 && (capKecilOverall - butuhKecilTotal) < (capKecilOverall * 0.15) ? 'text-red-600 font-bold' : ''}>
+                                                        {capKecilOverall - butuhKecilTotal} Slot {capKecilOverall > 0 && (capKecilOverall - butuhKecilTotal) < (capKecilOverall * 0.15) && '(Sangat Mepet, Rawan Fragmentasi)'}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1074,8 +1078,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                 <div className="mb-2 text-[11px] text-muted-foreground italic bg-gray-50 dark:bg-gray-800/50 p-2 rounded">Aturan 2 Nonaktif</div>
                                             )}
 
-                                            <p className={`text-[11px] font-medium mt-2 ${isAman ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                Status: {isAman ? 'Semua Kondisi Mencukupi (Aman)' : 'Peringatan: Ada Kapasitas/Dosen yang Overload!'}
+                                            <p className={`text-[11px] font-medium mt-2 ${isAman ? ((capBesarOverall > 0 && (capBesarOverall - butuhBesarTotal) < (capBesarOverall * 0.15)) ? 'text-orange-600 dark:text-orange-400' : 'text-emerald-700 dark:text-emerald-400') : 'text-red-600 dark:text-red-400'}`}>
+                                                Status: {isAman ? ((capBesarOverall > 0 && (capBesarOverall - butuhBesarTotal) < (capBesarOverall * 0.15)) ? 'Peringatan: Sisa ruang mepet. Bisa terjadi konflik jika slot kosong terpecah-pecah (fragmentasi).' : 'Semua Kondisi Mencukupi (Aman)') : 'Peringatan: Ada Kapasitas/Dosen yang Overload!'}
                                             </p>
                                         </div>
 
