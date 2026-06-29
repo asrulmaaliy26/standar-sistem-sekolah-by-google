@@ -69,10 +69,12 @@ export default function TabRuangan({
                                         
                                         const pushRow = () => {
                                             if (currentWaktuStart) {
-                                                const timeStr = `${currentWaktuStart.jam_mulai.slice(0, 5)} - ${currentWaktuEnd.jam_selesai.slice(0, 5)}`;
+                                                const capturedStart = currentWaktuStart;
+                                                const capturedEnd = currentWaktuEnd;
+                                                const timeStr = `${capturedStart.jam_mulai.slice(0, 5)} - ${capturedEnd.jam_selesai.slice(0, 5)}`;
                                                 if (isKosong) {
                                                     rows.push(
-                                                        <tr key={`kosong-${currentWaktuStart.id}`} className="border-border border-b border-dashed bg-emerald-50/30 dark:bg-emerald-950/10">
+                                                        <tr key={`kosong-${capturedStart.id}`} className="border-border border-b border-dashed bg-emerald-50/30 dark:bg-emerald-950/10">
                                                             <td className="p-3 font-medium align-top">{rows.length === 0 ? hari : ''}</td>
                                                             <td className="p-3 align-top whitespace-nowrap text-muted-foreground">{timeStr}</td>
                                                             <td className="p-3 font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
@@ -80,14 +82,17 @@ export default function TabRuangan({
                                                             </td>
                                                             <td className="p-3 align-top text-center">
                                                                 <button
-                                                                    onClick={() => {
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
                                                                         setSelectPlotModal({
                                                                             ruangId: ruang.id,
                                                                             hari: hari,
-                                                                            waktu: currentWaktuStart
+                                                                            waktu: capturedStart
                                                                         });
                                                                     }}
-                                                                    className="rounded bg-emerald-50 p-1.5 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                                                                    className="rounded bg-emerald-50 p-1.5 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 relative z-10"
                                                                     title="Isi Slot Kosong"
                                                                 >
                                                                     <Plus className="h-4 w-4" />
