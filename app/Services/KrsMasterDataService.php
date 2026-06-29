@@ -36,20 +36,47 @@ class KrsMasterDataService
                 'sks'              => $data['pj'],
                 'jenis_ruang'      => $data['jenis_ruang'] ?? null,
             ]);
+
+            $dosen = KrsDosen::where('krs_period_id', $periodId)
+                ->where('kode_mk', $mk->kode_mk)
+                ->where('kelas', $mk->kelas)
+                ->first();
+
             KrsJadwalPlot::create([
                 'krs_period_id'     => $periodId,
                 'krs_matakuliah_id' => $mk->id,
+                'krs_dosen_id'      => $dosen ? $dosen->id : null,
                 'is_conflict'       => false,
                 'conflict_message'  => null,
             ]);
         } elseif ($type === 'dosen') {
-            KrsDosen::create([
+            $dosen = KrsDosen::create([
                 'krs_period_id' => $periodId,
                 'nama_dosen'    => $data['nama_pendidik'],
                 'kode_mk'       => $data['kode_mp'],
+                'kelas'         => $data['kelas'] ?? '',
                 'prioritas'     => null,
-                'max_sks'       => $data['max_pj'] ?? null,
+                'max_sks'       => null,
             ]);
+
+            $mk = KrsMatakuliah::where('krs_period_id', $periodId)
+                ->where('kode_mk', $dosen->kode_mk)
+                ->where('kelas', $dosen->kelas)
+                ->first();
+                
+            if ($mk) {
+                $plot = KrsJadwalPlot::where('krs_period_id', $periodId)
+                    ->where('krs_matakuliah_id', $mk->id)
+                    ->first();
+
+                if ($plot) {
+                    if (is_null($plot->krs_dosen_id)) {
+                        $plot->update(['krs_dosen_id' => $dosen->id]);
+                    } elseif (is_null($plot->krs_dosen_kedua_id) && $plot->krs_dosen_id != $dosen->id) {
+                        $plot->update(['krs_dosen_kedua_id' => $dosen->id]);
+                    }
+                }
+            }
         } elseif ($type === 'ruang') {
             KrsRuang::create([
                 'krs_period_id' => $periodId,
@@ -67,11 +94,19 @@ class KrsMasterDataService
     public function deleteMasterDataByType(string $type, int $periodId): void
     {
         match ($type) {
-            'matakuliah' => KrsMatakuliah::where('krs_period_id', $periodId)->delete(),
-            'dosen'      => KrsDosen::where('krs_period_id', $periodId)->delete(),
-            'ruang'      => $this->deleteRuangAndAddDaring($periodId),
-            'waktu'      => $this->deleteWaktuAndClearPlots($periodId),
+            'matakuliah'     => KrsMatakuliah::where('krs_period_id', $periodId)->delete(),
+            'dosen'          => KrsDosen::where('krs_period_id', $periodId)->delete(),
+            'import_lengkap' => $this->deleteImportLengkap($periodId),
+            'ruang'          => $this->deleteRuangAndAddDaring($periodId),
+            'waktu'          => $this->deleteWaktuAndClearPlots($periodId),
         };
+    }
+
+    private function deleteImportLengkap(int $periodId): void
+    {
+        KrsJadwalPlot::where('krs_period_id', $periodId)->delete();
+        KrsMatakuliah::where('krs_period_id', $periodId)->delete();
+        KrsDosen::where('krs_period_id', $periodId)->delete();
     }
 
     /**

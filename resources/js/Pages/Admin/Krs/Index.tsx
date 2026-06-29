@@ -17,6 +17,7 @@ import {
     Upload,
     Users,
     Info,
+    FileText,
     AlertTriangle, 
     CalendarDays, 
     CheckCircle2, 
@@ -33,6 +34,7 @@ import { createPortal } from 'react-dom';
 import TabMapel from './Tabs/TabMapel';
 import TabPendidik from './Tabs/TabPendidik';
 import TabRuangan from './Tabs/TabRuangan';
+import TabHari from './Tabs/TabHari';
 
 interface Plot {
     id: number;
@@ -77,6 +79,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         put: putEdit,
     } = useForm({
         krs_dosen_id: '',
+        krs_dosen_kedua_id: '',
         krs_ruang_id: '',
         hari: 'Senin',
         krs_waktu_ids: [] as number[],
@@ -90,6 +93,19 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('Semua');
     const [activeTab, setActiveTab] = useState<'mapel' | 'dosen' | 'ruang'>('mapel');
+
+    const uniqueDosensList = React.useMemo(() => {
+        if (!editPlot) return [];
+        const uniqueDosensMap = new Map();
+        if (editPlot.dosen) uniqueDosensMap.set(editPlot.dosen.nama_dosen, editPlot.dosen);
+        if (editPlot.dosen_kedua) uniqueDosensMap.set(editPlot.dosen_kedua.nama_dosen, editPlot.dosen_kedua);
+        dosens.forEach((d: any) => {
+            if (!uniqueDosensMap.has(d.nama_dosen)) {
+                uniqueDosensMap.set(d.nama_dosen, d);
+            }
+        });
+        return Array.from(uniqueDosensMap.values());
+    }, [editPlot, dosens]);
 
     // State for Aturan Batasan Waktu Khusus (saved in localStorage)
     const [ruleActive, setRuleActive] = useState(() => {
@@ -384,7 +400,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     };
 
     const handleResetAll = () => {
-        if (confirm('Hapus seluruh hasil plotting dari database?')) {
+        if (confirm('AWAS! Hapus seluruh hasil plotting BESERTA Master Data Mapel dan Dosen dari database?')) {
             router.post(route('admin.krs.reset_all'), { period_id: activePeriodId });
         }
     };
@@ -577,6 +593,58 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 </div>
                                 <button type="submit" className="rounded bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700">
                                     Upload & Import
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Import Lengkap Card */}
+                        <div className="bg-card text-card-foreground border-border mb-6 rounded-xl border border-violet-200 p-6 shadow-sm dark:border-violet-800">
+                            <div className="mb-4 flex items-center justify-between">
+                                <div>
+                                    <h2 className="flex items-center gap-2 font-semibold text-violet-700 dark:text-violet-300">
+                                        <FileText className="h-5 w-5" /> Import Lengkap (Mapel + Pendidik Sekaligus)
+                                    </h2>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        Gunakan jika data Mapel &amp; Pendidik <strong>belum ada</strong>. Satu file CSV akan mengisi Mapel, Pendidik Utama, dan Pendidik Pendamping secara otomatis.
+                                    </p>
+                                </div>
+                                <a
+                                    href={route('admin.krs.template', 'import_lengkap')}
+                                    className="ml-4 flex shrink-0 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-600 shadow-sm transition-colors hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/30 dark:text-violet-400 dark:hover:bg-violet-900/50"
+                                >
+                                    <Download className="h-4 w-4" /> Unduh Template Lengkap
+                                </a>
+                            </div>
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const fileInput = (e.target as HTMLFormElement).querySelector('input[type=file]') as HTMLInputElement;
+                                    const file = fileInput?.files?.[0];
+                                    if (!file) return alert('Pilih file CSV terlebih dahulu');
+                                    const formData = new FormData();
+                                    formData.append('type', 'import_lengkap');
+                                    formData.append('file', file);
+                                    formData.append('period_id', String(activePeriodId ?? ''));
+                                    router.post(route('admin.krs.import'), formData, {
+                                        forceFormData: true,
+                                        onSuccess: () => fileInput && (fileInput.value = ''),
+                                    });
+                                }}
+                                className="flex items-end gap-4"
+                            >
+                                <div>
+                                    <label className="mb-1 block text-xs">File CSV / XLSX</label>
+                                    <input
+                                        type="file"
+                                        accept=".csv,.txt,.xlsx,.xls"
+                                        className="border-input w-72 rounded border bg-white p-1.5 text-slate-900 file:mr-2 file:rounded-md file:border-0 file:bg-violet-500/10 file:px-2 file:py-1 file:text-sm file:font-semibold file:text-violet-600 hover:file:bg-violet-500/20 dark:bg-slate-950 dark:text-slate-50"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+                                >
+                                    <Upload className="h-4 w-4" /> Upload &amp; Import Lengkap
                                 </button>
                             </form>
                         </div>
@@ -1158,6 +1226,12 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             >
                                 Berdasarkan Ruangan
                             </button>
+                            <button
+                                className={`pb-2 font-semibold transition-colors ${activeTab === 'hari' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setActiveTab('hari')}
+                            >
+                                Berdasarkan Hari
+                            </button>
                         </div>
                         {/* Table or Grouped View */}
                         {activeTab === 'mapel' && (
@@ -1196,6 +1270,17 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 setEditTimes={setEditTimes}
                             />
                         )}
+
+                        {activeTab === 'hari' && (
+                            <TabHari
+                                plots={plots}
+                                waktus={waktus}
+                                ruangs={ruangs}
+                                setEditPlot={setEditPlot}
+                                setEditData={setEditData}
+                                setEditTimes={setEditTimes}
+                            />
+                        )}
                     </>
                 )}
 
@@ -1218,20 +1303,33 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                         {/* Left Column: Form Inputs */}
                                         <div className="space-y-5">
                                             <div>
-                                                <label className="mb-1.5 block text-sm font-medium">Pendidik</label>
+                                                <label className="mb-1.5 block text-sm font-medium">Pendidik Utama (Bisa Diubah)</label>
                                                 <select
                                                     className="border-input focus:ring-primary w-full rounded-md border bg-white p-2.5 text-slate-900 shadow-sm focus:ring-2 dark:bg-slate-950 dark:text-slate-50"
                                                     value={editData.krs_dosen_id}
                                                     onChange={(e) => setEditData('krs_dosen_id', e.target.value)}
                                                 >
-                                                    <option value="">-- Pilih Pendidik --</option>
-                                                    {dosens
-                                                        .filter((d: any) => d.kode_mk === editPlot.matakuliah.kode_mk)
-                                                        .map((d: any) => (
-                                                            <option key={d.id} value={d.id}>
-                                                                {d.nama_dosen}
-                                                            </option>
-                                                        ))}
+                                                    <option value="">-- Pendidik Belum Diplot --</option>
+                                                    {uniqueDosensList.map((d: any) => (
+                                                        <option key={d.id} value={d.id}>
+                                                            {d.nama_dosen}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="mb-1.5 block text-sm font-medium">Pendidik Pendamping (Opsional)</label>
+                                                <select
+                                                    className="border-input focus:ring-primary w-full rounded-md border bg-white p-2.5 text-slate-900 shadow-sm focus:ring-2 dark:bg-slate-950 dark:text-slate-50"
+                                                    value={editData.krs_dosen_kedua_id}
+                                                    onChange={(e) => setEditData('krs_dosen_kedua_id', e.target.value)}
+                                                >
+                                                    <option value="">-- Tidak Ada --</option>
+                                                    {uniqueDosensList.map((d: any) => (
+                                                        <option key={d.id} value={d.id}>
+                                                            {d.nama_dosen}
+                                                        </option>
+                                                    ))}
                                                 </select>
                                             </div>
                                             <div>

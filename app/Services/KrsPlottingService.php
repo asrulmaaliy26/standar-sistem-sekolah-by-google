@@ -20,8 +20,21 @@ class KrsPlottingService
         @ob_flush(); flush();
         usleep(300000);
 
-        // Hapus semua plot sebelumnya untuk clean slate
-        KrsJadwalPlot::where('krs_period_id', $periodId)->delete();
+        // Hapus (reset) jadwal sebelumnya yang BELUM dikunci
+        $lockedPlotIds = KrsJadwalPlot::where('krs_period_id', $periodId)
+            ->where('is_locked', true)
+            ->pluck('id')
+            ->toArray();
+
+        KrsJadwalPlot::where('krs_period_id', $periodId)
+            ->whereNotIn('id', $lockedPlotIds)
+            ->update([
+                'hari' => null,
+                'krs_ruang_id' => null,
+                'krs_waktu_ids' => null,
+                'is_conflict' => false,
+                'conflict_message' => null
+            ]);
 
         $this->plotAutoCore($periodId, $batasanWaktu, $batasanWaktu2, $batasanWaktu3, false);
         $score = $this->calculateScore($periodId, $batasanWaktu3);
@@ -46,22 +59,36 @@ class KrsPlottingService
             @ob_flush(); flush();
             usleep(300000);
 
-            // RUIN step: 1. Hapus semua jadwal yang konflik
+            // RUIN step: 1. Kosongkan jadwal yang konflik (kecuali yang dikunci)
             $conflicts = KrsJadwalPlot::where('krs_period_id', $periodId)->where('is_conflict', true)->get();
             foreach($conflicts as $c) {
-                $c->delete();
+                if (!in_array($c->id, $lockedPlotIds)) {
+                    $c->update(['hari' => null, 'krs_ruang_id' => null, 'krs_waktu_ids' => null, 'is_conflict' => false, 'conflict_message' => null]);
+                }
             }
 
             // RUIN step: 2. Hitung overload harian dan hapus jadwal yang membuat dosen overload
-            $successes = KrsJadwalPlot::where('krs_period_id', $periodId)->where('is_conflict', false)->with(['matakuliah', 'dosen'])->get();
+            $successes = KrsJadwalPlot::where('krs_period_id', $periodId)->where('is_conflict', false)->with(['matakuliah', 'dosen', 'dosenKedua'])->get();
             $dailyLoad = [];
             foreach ($successes as $s) {
-                if ($s->hari && $s->krs_dosen_id && $s->dosen) {
-                    $namaDosen = strtolower(trim($s->dosen->nama_dosen));
-                    if (!isset($dailyLoad[$s->hari][$namaDosen])) {
-                        $dailyLoad[$s->hari][$namaDosen] = 0;
+                if ($s->hari && $s->matakuliah) {
+                    $divisor = $s->krs_dosen_kedua_id ? 2 : 1;
+                    $addedSks = $s->matakuliah->sks / $divisor;
+
+                    if ($s->krs_dosen_id && $s->dosen) {
+                        $namaDosen = strtolower(trim($s->dosen->nama_dosen));
+                        if (!isset($dailyLoad[$s->hari][$namaDosen])) {
+                            $dailyLoad[$s->hari][$namaDosen] = 0;
+                        }
+                        $dailyLoad[$s->hari][$namaDosen] += $addedSks;
                     }
-                    $dailyLoad[$s->hari][$namaDosen] += ($s->matakuliah->sks ?? 0);
+                    if ($s->krs_dosen_kedua_id && $s->dosenKedua) {
+                        $namaDosen2 = strtolower(trim($s->dosenKedua->nama_dosen));
+                        if (!isset($dailyLoad[$s->hari][$namaDosen2])) {
+                            $dailyLoad[$s->hari][$namaDosen2] = 0;
+                        }
+                        $dailyLoad[$s->hari][$namaDosen2] += $addedSks;
+                    }
                 }
             }
 
@@ -69,27 +96,39 @@ class KrsPlottingService
             $rule3Active = $batasanWaktu3['aktif'] ?? true;
             foreach ($successes as $s) {
                 $isOverload = false;
-                if ($rule3Active && $s->hari && $s->krs_dosen_id && $s->dosen) {
-                    $namaDosen = strtolower(trim($s->dosen->nama_dosen));
-                    if (($dailyLoad[$s->hari][$namaDosen] ?? 0) > 6) {
-                        $isOverload = true;
+                if ($rule3Active && $s->hari) {
+                    if ($s->krs_dosen_id && $s->dosen) {
+                        $namaDosen = strtolower(trim($s->dosen->nama_dosen));
+                        if (($dailyLoad[$s->hari][$namaDosen] ?? 0) > 6) {
+                            $isOverload = true;
+                        }
+                    }
+                    if ($s->krs_dosen_kedua_id && $s->dosenKedua) {
+                        $namaDosen2 = strtolower(trim($s->dosenKedua->nama_dosen));
+                        if (($dailyLoad[$s->hari][$namaDosen2] ?? 0) > 6) {
+                            $isOverload = true;
+                        }
                     }
                 }
 
                 if ($isOverload) {
-                    $s->delete();
+                    if (!in_array($s->id, $lockedPlotIds)) {
+                        $s->update(['hari' => null, 'krs_ruang_id' => null, 'krs_waktu_ids' => null, 'is_conflict' => false, 'conflict_message' => null]);
+                    }
                 } else {
-                    $cleanSuccesses[] = $s;
+                    if (!in_array($s->id, $lockedPlotIds)) {
+                        $cleanSuccesses[] = $s;
+                    }
                 }
             }
 
-            // RUIN step: 3. Hapus sebagian (25%) jadwal yang sukses dan aman secara acak untuk memberi ruang
+            // RUIN step: 3. Kosongkan sebagian (25%) jadwal yang sukses dan aman secara acak untuk memberi ruang
             $successesCollection = collect($cleanSuccesses);
             $numToRuin = max(1, (int)($successesCollection->count() * 0.25));
             if ($successesCollection->count() > 0) {
                 $ruinTargets = $successesCollection->random(min($numToRuin, $successesCollection->count()));
                 foreach($ruinTargets as $r) {
-                    $r->delete();
+                    $r->update(['hari' => null, 'krs_ruang_id' => null, 'krs_waktu_ids' => null, 'is_conflict' => false, 'conflict_message' => null]);
                 }
             }
 
@@ -117,8 +156,16 @@ class KrsPlottingService
         }
 
         // RESTORE BEST STATE
-        KrsJadwalPlot::where('krs_period_id', $periodId)->delete();
-        KrsJadwalPlot::insert($bestPlots);
+        // Daripada delete(), kita kembalikan statusnya
+        foreach ($bestPlots as $bp) {
+            KrsJadwalPlot::where('id', $bp['id'])->update([
+                'hari' => $bp['hari'],
+                'krs_ruang_id' => $bp['krs_ruang_id'],
+                'krs_waktu_ids' => $bp['krs_waktu_ids'],
+                'is_conflict' => $bp['is_conflict'],
+                'conflict_message' => $bp['conflict_message']
+            ]);
+        }
         $this->validateConflicts($periodId);
 
         echo "data: " . json_encode(['done' => true, 'message' => "Proses selesai! Menyimpan hasil terbaik dengan $bestScore konflik."]) . "\n\n" . $pad;
@@ -135,15 +182,35 @@ class KrsPlottingService
             $successes = KrsJadwalPlot::where('krs_period_id', $periodId)->where('is_conflict', false)->with('matakuliah')->get();
             $dailyLoad = [];
             foreach ($successes as $s) {
-                if ($s->hari && $s->krs_dosen_id) {
-                    if (!isset($dailyLoad[$s->hari][$s->krs_dosen_id])) {
-                        $dailyLoad[$s->hari][$s->krs_dosen_id] = 0;
+                if ($s->hari && $s->matakuliah) {
+                    $divisor = $s->krs_dosen_kedua_id ? 2 : 1;
+                    $addedSks = $s->matakuliah->sks / $divisor;
+                    
+                    if ($s->krs_dosen_id) {
+                        if (!isset($dailyLoad[$s->hari][$s->krs_dosen_id])) {
+                            $dailyLoad[$s->hari][$s->krs_dosen_id] = 0;
+                        }
+                        $dailyLoad[$s->hari][$s->krs_dosen_id] += $addedSks;
                     }
-                    $dailyLoad[$s->hari][$s->krs_dosen_id] += ($s->matakuliah->sks ?? 0);
+                    if ($s->krs_dosen_kedua_id) {
+                        if (!isset($dailyLoad[$s->hari][$s->krs_dosen_kedua_id])) {
+                            $dailyLoad[$s->hari][$s->krs_dosen_kedua_id] = 0;
+                        }
+                        $dailyLoad[$s->hari][$s->krs_dosen_kedua_id] += $addedSks;
+                    }
                 }
             }
             foreach ($successes as $s) {
-                if ($s->hari && $s->krs_dosen_id && ($dailyLoad[$s->hari][$s->krs_dosen_id] ?? 0) > 6) {
+                $isOverloaded = false;
+                if ($s->hari) {
+                    if ($s->krs_dosen_id && ($dailyLoad[$s->hari][$s->krs_dosen_id] ?? 0) > 6) {
+                        $isOverloaded = true;
+                    }
+                    if ($s->krs_dosen_kedua_id && ($dailyLoad[$s->hari][$s->krs_dosen_kedua_id] ?? 0) > 6) {
+                        $isOverloaded = true;
+                    }
+                }
+                if ($isOverloaded) {
                     $overloads++;
                 }
             }
@@ -213,7 +280,7 @@ class KrsPlottingService
         $roomLoad = [];
 
         // Preload existing plots to populate usage (if any remain)
-        $existingPlots = KrsJadwalPlot::where('krs_period_id', $periodId)->with('dosen')->get();
+        $existingPlots = KrsJadwalPlot::where('krs_period_id', $periodId)->with(['dosen', 'dosenKedua', 'matakuliah'])->get();
         foreach ($existingPlots as $plot) {
             // CACAT 3 FIX: Only preload usage if the plot is perfectly scheduled.
             // If it's a conflict or incomplete, plotAuto will REPLOT it, 
@@ -223,17 +290,37 @@ class KrsPlottingService
             }
 
             $h = $plot->hari;
-            if ($plot->krs_dosen_id && $plot->dosen) {
-                $namaDosen = strtolower(trim($plot->dosen->nama_dosen));
-                if (!isset($dosenUsage[$namaDosen])) $dosenUsage[$namaDosen] = 0;
-                $dosenUsage[$namaDosen] += $plot->matakuliah->sks;
+            if ($plot->matakuliah) {
+                $divisor = $plot->krs_dosen_kedua_id ? 2 : 1;
+                $addedSks = $plot->matakuliah->sks / $divisor;
 
-                if (!isset($dosenDailySks[$h][$namaDosen])) $dosenDailySks[$h][$namaDosen] = 0;
-                $dosenDailySks[$h][$namaDosen] += $plot->matakuliah->sks;
+                if ($plot->krs_dosen_id && $plot->dosen) {
+                    $namaDosen = strtolower(trim($plot->dosen->nama_dosen));
+                    if (!isset($dosenUsage[$namaDosen])) $dosenUsage[$namaDosen] = 0;
+                    $dosenUsage[$namaDosen] += $addedSks;
 
-                if ($plot->krs_waktu_ids && $h) {
-                    foreach ($plot->krs_waktu_ids as $wId) {
-                        $dosenTimeUsage[$h][$namaDosen][$wId] = true;
+                    if (!isset($dosenDailySks[$h][$namaDosen])) $dosenDailySks[$h][$namaDosen] = 0;
+                    $dosenDailySks[$h][$namaDosen] += $addedSks;
+
+                    if ($plot->krs_waktu_ids && $h) {
+                        foreach ($plot->krs_waktu_ids as $wId) {
+                            $dosenTimeUsage[$h][$namaDosen][$wId] = true;
+                        }
+                    }
+                }
+                
+                if ($plot->krs_dosen_kedua_id && $plot->dosenKedua) {
+                    $namaDosen2 = strtolower(trim($plot->dosenKedua->nama_dosen));
+                    if (!isset($dosenUsage[$namaDosen2])) $dosenUsage[$namaDosen2] = 0;
+                    $dosenUsage[$namaDosen2] += $addedSks;
+
+                    if (!isset($dosenDailySks[$h][$namaDosen2])) $dosenDailySks[$h][$namaDosen2] = 0;
+                    $dosenDailySks[$h][$namaDosen2] += $addedSks;
+
+                    if ($plot->krs_waktu_ids && $h) {
+                        foreach ($plot->krs_waktu_ids as $wId) {
+                            $dosenTimeUsage[$h][$namaDosen2][$wId] = true;
+                        }
                     }
                 }
             }
@@ -272,19 +359,20 @@ class KrsPlottingService
             // Check if already plotted and
             $existingPlot = $existingPlots->firstWhere('krs_matakuliah_id', $mk->id);
             
-            // Jika mode RECREATE, lewati mata kuliah yang sudah sukses terplot di DB (karena tidak di-ruin)
-            if ($isRecreate && $existingPlot && !$existingPlot->is_conflict && $existingPlot->krs_waktu_ids && $existingPlot->krs_ruang_id) {
+            // Jika sudah ada jadwal yang valid (dianggap sebagai manual plot yang dikunci atau sudah well-plotted)
+            if ($existingPlot && $existingPlot->hari && $existingPlot->krs_waktu_ids && $existingPlot->krs_ruang_id && !$existingPlot->is_conflict) {
                 continue;
-            }
-            if ($existingPlot && !$existingPlot->is_conflict && $existingPlot->krs_waktu_ids && $existingPlot->krs_ruang_id) {
-                continue; // Skip already well-plotted
             }
 
             // Find eligible dosens for this MK (based on kode_mk and kelas)
-            $eligibleDosens = $dosens->where('kode_mk', $mk->kode_mk)->filter(function ($d) use ($mk) {
-                if (empty($d->kelas)) return true;
-                return strtolower(trim($d->kelas)) === strtolower(trim($mk->kelas));
-            });
+            if ($existingPlot && $existingPlot->krs_dosen_id) {
+                $eligibleDosens = $dosens->where('id', $existingPlot->krs_dosen_id);
+            } else {
+                $eligibleDosens = $dosens->where('kode_mk', $mk->kode_mk)->filter(function ($d) use ($mk) {
+                    if (empty($d->kelas)) return true;
+                    return strtolower(trim($d->kelas)) === strtolower(trim($mk->kelas));
+                });
+            }
 
             // Sort eligible dosens by current usage so we prioritize the one with least SKS
             $dosensList = $eligibleDosens->filter(function ($d) use ($dosenUsage, $mk) {
@@ -303,11 +391,12 @@ class KrsPlottingService
             $selectedHari = null;
             $isConflict = false;
             $conflictMsg = [];
-            $selectedDosen = null;
+            $selectedDosen = ($existingPlot && $existingPlot->krs_dosen_id) ? KrsDosen::find($existingPlot->krs_dosen_id) : null;
+            $selectedDosenKedua = ($existingPlot && $existingPlot->krs_dosen_kedua_id) ? KrsDosen::find($existingPlot->krs_dosen_kedua_id) : null;
 
             if ($dosensList->isEmpty()) {
                 $isConflict = true;
-                $conflictMsg[] = "Tidak ada pendidik yang tersedia atau semua melebihi beban maksimal.";
+                $conflictMsg[] = "Tidak ada pendidik utama yang tersedia atau semua melebihi beban maksimal.";
             }
 
             $reasonNoContinuousTime = true;
@@ -328,6 +417,8 @@ class KrsPlottingService
 
                     $namaDosen = strtolower(trim($dosen->nama_dosen));
 
+                    $namaDosenKedua = $selectedDosenKedua ? strtolower(trim($selectedDosenKedua->nama_dosen)) : null;
+
                     // Kumpulkan semua kandidat blok slot yang valid dari semua hari
                     // Format: [ ['hari'=>.., 'block'=>[ids..], 'score'=>..], ... ]
                     $candidates = [];
@@ -336,9 +427,17 @@ class KrsPlottingService
 
                         // PASS 1 STRICT: Tolak hari yang akan membuat dosen overload
                         if ($pass === 1 && $rule3Active) {
+                            $divisor = $selectedDosenKedua ? 2 : 1;
+                            $addedSks = $mk->sks / $divisor;
                             $currentDailySks = $dosenDailySks[$hari][$namaDosen] ?? 0;
-                            if (($currentDailySks + $mk->sks) > 6) {
+                            if (($currentDailySks + $addedSks) > 6) {
                                 continue; // Dosen akan overload di hari ini, lewati
+                            }
+                            if ($namaDosenKedua) {
+                                $currentDailySks2 = $dosenDailySks[$hari][$namaDosenKedua] ?? 0;
+                                if (($currentDailySks2 + $addedSks) > 6) {
+                                    continue; 
+                                }
                             }
                         }
 
@@ -349,6 +448,8 @@ class KrsPlottingService
                             // Cek apakah slot ini sudah penuh (semua ruang dipakai)
                             // Slot dianggap "terisi" jika dosen ini sudah di slot tsb
                             if (isset($dosenTimeUsage[$hari][$namaDosen][$w->id])) {
+                                $slotsTakenInDay++;
+                            } elseif ($namaDosenKedua && isset($dosenTimeUsage[$hari][$namaDosenKedua][$w->id])) {
                                 $slotsTakenInDay++;
                             }
                         }
@@ -382,6 +483,9 @@ class KrsPlottingService
                                 }
                                 // Dosen sibuk di slot ini
                                 if (isset($dosenTimeUsage[$hari][$namaDosen][$w->id])) {
+                                    break;
+                                }
+                                if ($namaDosenKedua && isset($dosenTimeUsage[$hari][$namaDosenKedua][$w->id])) {
                                     break;
                                 }
 
@@ -472,6 +576,7 @@ class KrsPlottingService
             if ($existingPlot) {
                 $existingPlot->update([
                     'krs_dosen_id' => $selectedDosen?->id,
+                    'krs_dosen_kedua_id' => $selectedDosenKedua?->id,
                     'krs_ruang_id' => $selectedRuang?->id,
                     'hari' => $selectedHari,
                     'krs_waktu_ids' => $selectedWaktuIds ?: null,
@@ -483,6 +588,7 @@ class KrsPlottingService
                     'krs_period_id' => $periodId,
                     'krs_matakuliah_id' => $mk->id,
                     'krs_dosen_id' => $selectedDosen?->id,
+                    'krs_dosen_kedua_id' => $selectedDosenKedua?->id,
                     'krs_ruang_id' => $selectedRuang?->id,
                     'hari' => $selectedHari,
                     'krs_waktu_ids' => $selectedWaktuIds ?: null,
@@ -492,19 +598,17 @@ class KrsPlottingService
             }
 
             // Update usage trackers
+            $divisor = $selectedDosenKedua ? 2 : 1;
+            $addedSks = $mk->sks / $divisor;
+
             if ($selectedDosen) {
                 $namaDosen = strtolower(trim($selectedDosen->nama_dosen));
-                if (!isset($dosenUsage[$namaDosen])) {
-                    $dosenUsage[$namaDosen] = 0;
-                }
-                $dosenUsage[$namaDosen] += $mk->sks; // INCREMENT LOAD!
+                if (!isset($dosenUsage[$namaDosen])) $dosenUsage[$namaDosen] = 0;
+                $dosenUsage[$namaDosen] += $addedSks;
 
                 if (!$isConflict && $selectedRuang && !empty($selectedWaktuIds) && $selectedHari) {
-
-                    if (!isset($dosenDailySks[$selectedHari][$namaDosen])) {
-                        $dosenDailySks[$selectedHari][$namaDosen] = 0;
-                    }
-                    $dosenDailySks[$selectedHari][$namaDosen] += $mk->sks;
+                    if (!isset($dosenDailySks[$selectedHari][$namaDosen])) $dosenDailySks[$selectedHari][$namaDosen] = 0;
+                    $dosenDailySks[$selectedHari][$namaDosen] += $addedSks;
 
                     foreach ($selectedWaktuIds as $wId) {
                         $dosenTimeUsage[$selectedHari][$namaDosen][$wId] = true;
@@ -512,6 +616,20 @@ class KrsPlottingService
 
                         $dayLoad[$selectedHari] = ($dayLoad[$selectedHari] ?? 0) + 1;
                         $roomLoad[$selectedRuang->id] = ($roomLoad[$selectedRuang->id] ?? 0) + 1;
+                    }
+                }
+            }
+            if ($selectedDosenKedua) {
+                $namaDosenKedua = strtolower(trim($selectedDosenKedua->nama_dosen));
+                if (!isset($dosenUsage[$namaDosenKedua])) $dosenUsage[$namaDosenKedua] = 0;
+                $dosenUsage[$namaDosenKedua] += $addedSks;
+
+                if (!$isConflict && $selectedRuang && !empty($selectedWaktuIds) && $selectedHari) {
+                    if (!isset($dosenDailySks[$selectedHari][$namaDosenKedua])) $dosenDailySks[$selectedHari][$namaDosenKedua] = 0;
+                    $dosenDailySks[$selectedHari][$namaDosenKedua] += $addedSks;
+
+                    foreach ($selectedWaktuIds as $wId) {
+                        $dosenTimeUsage[$selectedHari][$namaDosenKedua][$wId] = true;
                     }
                 }
             }
@@ -539,6 +657,10 @@ class KrsPlottingService
                 if ($plot->krs_dosen_id && $plot->dosen) {
                     $namaDosen = strtolower(trim($plot->dosen->nama_dosen));
                     $dosenUsage[$plot->hari][$namaDosen][$wId][] = $plot->id;
+                }
+                if ($plot->krs_dosen_kedua_id && $plot->dosenKedua) {
+                    $namaDosenKedua = strtolower(trim($plot->dosenKedua->nama_dosen));
+                    $dosenUsage[$plot->hari][$namaDosenKedua][$wId][] = $plot->id;
                 }
             }
         }
@@ -568,6 +690,8 @@ class KrsPlottingService
             if (!$plot->krs_dosen_id) {
                 $isConflict = true;
                 if ($plot->conflict_message && strpos($plot->conflict_message, 'melebihi beban maksimal') !== false) {
+                    $msgs[] = $plot->conflict_message;
+                } else if ($plot->conflict_message && strpos($plot->conflict_message, 'pendidik utama yang tersedia') !== false) {
                     $msgs[] = $plot->conflict_message;
                 } else {
                     $msgs[] = "Dosen belum diatur.";
@@ -604,6 +728,13 @@ class KrsPlottingService
                     if ($plot->krs_dosen_id && $plot->dosen) {
                         $namaDosen = strtolower(trim($plot->dosen->nama_dosen));
                         $users = $dosenUsage[$plot->hari][$namaDosen][$wId] ?? [];
+                        if (count($users) > 1) {
+                            $dosenConflict = true;
+                        }
+                    }
+                    if ($plot->krs_dosen_kedua_id && $plot->dosenKedua) {
+                        $namaDosenKedua = strtolower(trim($plot->dosenKedua->nama_dosen));
+                        $users = $dosenUsage[$plot->hari][$namaDosenKedua][$wId] ?? [];
                         if (count($users) > 1) {
                             $dosenConflict = true;
                         }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Edit, Lock } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
 interface Plot {
@@ -10,10 +10,13 @@ interface Plot {
     krs_waktu_ids: number[] | null;
     hari: string | null;
     is_conflict: boolean;
+    is_locked: boolean;
     conflict_message: string | null;
     conflict_group_id?: number | null;
     matakuliah: { kode_mk: string; nama_mk: string; kelas: string; sks: number; jenis_ruang: string | null };
     dosen?: { id: number; nama_dosen: string };
+    dosen_kedua?: { id: number; nama_dosen: string };
+    krs_dosen_kedua_id?: number | null;
     ruang?: { id: number; nama_ruang: string; kapasitas: string | null };
     waktu_details?: { id: number; hari: string; jam_mulai: string; jam_selesai: string }[];
 }
@@ -67,17 +70,20 @@ export default function TabPendidik({
 
     // Fill plots
     plots?.forEach((p: Plot) => {
-        let name = 'Belum Ditentukan / Kosong';
+        const divisor = p.krs_dosen_kedua_id ? 2 : 1;
+        const addedSks = p.matakuliah.sks / divisor;
+        let isPlottedToDosen = false;
 
-        if (p.krs_dosen_id && p.dosen) {
-            name = p.dosen.nama_dosen.trim();
-        } else if (p.krs_dosen_id) {
-            const d = dosens?.find((d: any) => d.id === p.krs_dosen_id);
-            if (d) name = d.nama_dosen.trim();
-            else name = 'Tidak Diketahui';
-        }
-
-        if (p.krs_dosen_id) {
+        const assignToDosen = (dosenId: number | null, dosenObj: any) => {
+            if (!dosenId) return;
+            isPlottedToDosen = true;
+            let name = 'Tidak Diketahui';
+            if (dosenObj) {
+                name = dosenObj.nama_dosen.trim();
+            } else {
+                const d = dosens?.find((d: any) => d.id === dosenId);
+                if (d) name = d.nama_dosen.trim();
+            }
             if (!groups.has(name)) {
                 groups.set(name, {
                     nama_dosen: name,
@@ -91,8 +97,13 @@ export default function TabPendidik({
             }
             const g = groups.get(name);
             g.plots.push(p);
-            g.totalSks += p.matakuliah.sks;
-        } else {
+            g.totalSks += addedSks;
+        };
+
+        assignToDosen(p.krs_dosen_id, p.dosen);
+        assignToDosen(p.krs_dosen_kedua_id, p.dosen_kedua);
+
+        if (!isPlottedToDosen) {
             // Plot is fully unassigned to any dosen
             // Assign it to the "belum" group's plots
             groups.get('belum').plots.push(p);
@@ -154,7 +165,8 @@ export default function TabPendidik({
                                         const dailyLoad: Record<string, number> = {};
                                         g.plots.forEach((p: Plot) => {
                                             if (p.hari) {
-                                                dailyLoad[p.hari] = (dailyLoad[p.hari] || 0) + (p.matakuliah.sks || 0);
+                                                const divisor = p.krs_dosen_kedua_id ? 2 : 1;
+                                                dailyLoad[p.hari] = (dailyLoad[p.hari] || 0) + ((p.matakuliah.sks / divisor) || 0);
                                             }
                                         });
                                         return g.plots.map((p: Plot) => {
@@ -165,7 +177,12 @@ export default function TabPendidik({
                                                     className={`border-border border-b last:border-0 ${isOverload ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20' : 'hover:bg-muted/30'}`}
                                                 >
                                                     <td className="p-3 font-medium">{p.matakuliah.kode_mk}</td>
-                                                    <td className="p-3">{p.matakuliah.nama_mk}</td>
+                                                    <td className="p-3">
+                                                        <div className="flex items-center gap-1">
+                                                            {p.matakuliah.nama_mk} ({p.matakuliah.sks} SKS)
+                                                            {p.is_locked && <Lock className="h-3 w-3 text-amber-500" title="Diplot Manual (Terkunci)" />}
+                                                        </div>
+                                                    </td>
                                                     <td className="p-3">{p.matakuliah.kelas}</td>
                                                     <td className="p-3">{p.matakuliah.sks}</td>
                                                     <td className="p-3">{p.matakuliah.jenis_ruang ?? '-'}</td>
@@ -190,81 +207,62 @@ export default function TabPendidik({
                                                         )}
                                                     </td>
                                                     <td className="p-3">
-                                                        <button
-                                                            onClick={() => {
-                                                                if (
-                                                                    confirm(
-                                                                        `Yakin ingin mereset plot kelas ${p.matakuliah.nama_mk} (${p.matakuliah.kelas})? Pendidik, ruangan, dan waktu akan dikosongkan.`,
-                                                                    )
-                                                                ) {
-                                                                    // @ts-ignore
-                                                                    router.put(
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setEditPlot(p);
+                                                                    setEditData({
+                                                                        krs_dosen_id: p.krs_dosen_id?.toString() || '',
+                                                                        krs_dosen_kedua_id: p.krs_dosen_kedua_id?.toString() || '',
+                                                                        krs_ruang_id: p.krs_ruang_id?.toString() || '',
+                                                                        hari: p.hari || 'Senin',
+                                                                        krs_waktu_ids: p.krs_waktu_ids || [],
+                                                                    });
+                                                                    if (p.waktu_details && p.waktu_details.length > 0) {
+                                                                        setEditTimes(
+                                                                            p.waktu_details.map((w: any) => `${w.jam_mulai} - ${w.jam_selesai}`),
+                                                                        );
+                                                                    } else {
+                                                                        setEditTimes([]);
+                                                                    }
+                                                                }}
+                                                                className="rounded bg-blue-50 p-1.5 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+                                                                title="Edit Plot"
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (
+                                                                        confirm(
+                                                                            `Yakin ingin mereset jadwal kelas ${p.matakuliah.nama_mk} (${p.matakuliah.kelas})? Ruangan dan waktu akan dikosongkan.`,
+                                                                        )
+                                                                    ) {
                                                                         // @ts-ignore
-                                                                        route('admin.krs.plot.update', p.id),
-                                                                        {
-                                                                            krs_dosen_id: null,
-                                                                            krs_ruang_id: null,
-                                                                            hari: null,
-                                                                            krs_waktu_ids: [],
-                                                                        },
-                                                                        { preserveScroll: true },
-                                                                    );
-                                                                }
-                                                            }}
-                                                            className="rounded bg-red-50 p-1.5 text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
-                                                            title="Kosongkan (Reset) Kelas Ini"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </button>
+                                                                        router.put(
+                                                                            // @ts-ignore
+                                                                            route('admin.krs.plot.update', p.id),
+                                                                            {
+                                                                                krs_dosen_id: p.krs_dosen_id,
+                                                                                krs_ruang_id: null,
+                                                                                hari: null,
+                                                                                krs_waktu_ids: [],
+                                                                            },
+                                                                            { preserveScroll: true },
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                className="rounded bg-red-50 p-1.5 text-red-600 transition-colors hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+                                                                title="Kosongkan (Reset) Kelas Ini"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );
                                         });
                                     })()
-                                )}
-                                {g.unplotted && g.unplotted.length > 0 && (
-                                    <>
-                                        <tr className="bg-muted/10">
-                                            <td
-                                                colSpan={7}
-                                                className="text-muted-foreground border-border border-b p-3 font-semibold"
-                                            >
-                                                Mapel Yang Belum Diplot (Bisa Diambil)
-                                            </td>
-                                        </tr>
-                                        {g.unplotted.map((p: any) => (
-                                            <tr
-                                                key={`un-${p.id}`}
-                                                className="border-border hover:bg-muted/30 border-b opacity-70 last:border-0"
-                                            >
-                                                <td className="p-3 font-medium">{p.matakuliah.kode_mk}</td>
-                                                <td className="p-3">{p.matakuliah.nama_mk}</td>
-                                                <td className="p-3">{p.matakuliah.kelas}</td>
-                                                <td className="p-3">{p.matakuliah.sks}</td>
-                                                <td className="p-3">{p.matakuliah.jenis_ruang ?? '-'}</td>
-                                                <td className="p-3 text-xs font-medium text-red-500">
-                                                    Belum Ada Dosen & Jadwal
-                                                </td>
-                                                <td className="p-3">
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditPlot(p);
-                                                            setEditData({
-                                                                krs_dosen_id: p.suggested_dosen_id || '',
-                                                                krs_ruang_id: p.krs_ruang_id || '',
-                                                                hari: p.hari || '',
-                                                                krs_waktu_ids: p.krs_waktu_ids || [],
-                                                            });
-                                                            setEditTimes([]);
-                                                        }}
-                                                        className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-2 py-1 text-xs font-semibold"
-                                                    >
-                                                        Plot Manual
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </>
                                 )}
                             </tbody>
                         </table>

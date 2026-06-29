@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Edit } from 'lucide-react';
+import { Search, Edit, Lock } from 'lucide-react';
 
 interface Plot {
     id: number;
@@ -9,10 +9,13 @@ interface Plot {
     krs_waktu_ids: number[] | null;
     hari: string | null;
     is_conflict: boolean;
+    is_locked: boolean;
     conflict_message: string | null;
     conflict_group_id?: number | null;
     matakuliah: { kode_mk: string; nama_mk: string; kelas: string; sks: number; jenis_ruang: string | null };
     dosen?: { id: number; nama_dosen: string };
+    dosen_kedua?: { id: number; nama_dosen: string };
+    krs_dosen_kedua_id?: number | null;
     ruang?: { id: number; nama_ruang: string; kapasitas: string | null };
     waktu_details?: { id: number; hari: string; jam_mulai: string; jam_selesai: string }[];
 }
@@ -121,11 +124,19 @@ export default function TabMapel({
                             return (
                                 <tr key={p.id} className={`border-border border-b transition-colors ${rowBgClass}`}>
                                     <td className="p-3 text-sm font-medium">{p.matakuliah.kode_mk}</td>
-                                    <td className="p-3 text-sm">{p.matakuliah.nama_mk}</td>
+                                    <td className="p-3 text-sm">
+                                        <div className="flex items-center gap-1">
+                                            {p.matakuliah.nama_mk}
+                                            {p.is_locked && <Lock className="h-3 w-3 text-amber-500" title="Diplot Manual (Terkunci)" />}
+                                        </div>
+                                    </td>
                                     <td className="p-3 text-sm">{p.matakuliah.kelas}</td>
                                     <td className="p-3 text-sm">{p.matakuliah.sks}</td>
                                     <td className="p-3 text-sm">{p.matakuliah.jenis_ruang ?? '-'}</td>
-                                    <td className="p-3 text-sm">{p.dosen?.nama_dosen ?? '-'}</td>
+                                    <td className="p-3 text-sm">
+                                        {p.dosen?.nama_dosen ?? '-'}
+                                        {p.dosen_kedua ? ` & ${p.dosen_kedua.nama_dosen}` : ''}
+                                    </td>
                                     <td className="p-3 text-sm">
                                         {p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas ?? '-'})` : '-'}
                                     </td>
@@ -160,6 +171,7 @@ export default function TabMapel({
                                                 setEditPlot(p);
                                                 setEditData({
                                                     krs_dosen_id: p.krs_dosen_id?.toString() || '',
+                                                    krs_dosen_kedua_id: p.krs_dosen_kedua_id?.toString() || '',
                                                     krs_ruang_id: p.krs_ruang_id?.toString() || '',
                                                     hari: p.hari || 'Senin',
                                                     krs_waktu_ids: p.krs_waktu_ids || [],

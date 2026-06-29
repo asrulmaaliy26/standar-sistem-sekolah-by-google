@@ -45,7 +45,7 @@ class KrsSchedulingController extends Controller
             $ruangs = KrsRuang::where('krs_period_id', $activePeriodId)->get();
             $waktus = KrsWaktu::where('krs_period_id', $activePeriodId)->get();
 
-            $plots = KrsJadwalPlot::with(['matakuliah', 'dosen', 'ruang'])
+            $plots = KrsJadwalPlot::with(['matakuliah', 'dosen', 'dosenKedua', 'ruang'])
                 ->where('krs_period_id', $activePeriodId)
                 ->get();
 
@@ -203,11 +203,15 @@ class KrsSchedulingController extends Controller
     public function downloadTemplate(string $type)
     {
         try {
-            $headers = $this->csvService->getTemplateHeaders($type);
+            $headers  = $this->csvService->getTemplateHeaders($type);
+            $examples = $this->csvService->getTemplateRows($type);
 
-            $callback = function () use ($headers) {
+            $callback = function () use ($headers, $examples) {
                 $file = fopen('php://output', 'w');
                 fputcsv($file, $headers);
+                foreach ($examples as $row) {
+                    fputcsv($file, $row);
+                }
                 fclose($file);
             };
 
@@ -222,7 +226,7 @@ class KrsSchedulingController extends Controller
     public function importCsv(Request $request)
     {
         $request->validate([
-            'type'      => 'required|in:matakuliah,dosen,ruang,waktu',
+            'type'      => 'required|in:matakuliah,dosen,ruang,waktu,import_lengkap',
             'file'      => 'required|file|mimes:csv,txt,xlsx,xls',
             'period_id' => 'required|exists:krs_periods,id',
         ]);
@@ -244,7 +248,7 @@ class KrsSchedulingController extends Controller
     {
         $request->validate([
             'period_id' => 'required|exists:krs_periods,id',
-            'type'      => 'required|in:matakuliah,dosen,ruang,waktu',
+            'type'      => 'required|in:matakuliah,dosen,ruang,waktu,import_lengkap',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -284,6 +288,7 @@ class KrsSchedulingController extends Controller
             $request->validate([
                 'nama_pendidik' => 'required|string|max:255',
                 'kode_mp' => 'required|string|max:255',
+                'kelas' => 'nullable|string|max:255',
                 'max_pj' => 'nullable|integer|min:1',
             ]);
         } elseif ($type === 'ruang') {
@@ -381,35 +386,44 @@ class KrsSchedulingController extends Controller
     {
         $request->validate(['period_id' => 'required|exists:krs_periods,id']);
         KrsJadwalPlot::where('krs_period_id', $request->period_id)->update([
-            'krs_dosen_id'     => null,
             'krs_ruang_id'     => null,
             'hari'             => null,
             'krs_waktu_ids'    => null,
             'is_conflict'      => false,
             'conflict_message' => null,
         ]);
-        return redirect()->back()->with('success', 'Plot berhasil direset.');
+        return redirect()->back()->with('success', 'Plot berhasil direset (Dosen tetap dipertahankan).');
     }
 
     public function resetSemuaPlot(Request $request)
     {
         $request->validate(['period_id' => 'required|exists:krs_periods,id']);
-        KrsJadwalPlot::where('krs_period_id', $request->period_id)->delete();
-        return redirect()->back()->with('success', 'Semua hasil plot dihapus.');
+        
+        DB::transaction(function () use ($request) {
+            KrsJadwalPlot::where('krs_period_id', $request->period_id)->delete();
+            KrsMatakuliah::where('krs_period_id', $request->period_id)->delete();
+            KrsDosen::where('krs_period_id', $request->period_id)->delete();
+        });
+
+        return redirect()->back()->with('success', 'Semua hasil plot jadwal, master mapel, dan master dosen berhasil dihapus secara keseluruhan.');
     }
 
     public function updatePlot(Request $request, int $id, KrsPlottingService $service)
     {
         $plot = KrsJadwalPlot::findOrFail($id);
 
+        $isLocked = !empty($request->hari) && !empty($request->krs_ruang_id) && !empty($request->krs_waktu_ids);
+
         $plot->update([
-            'krs_dosen_id'     => $request->krs_dosen_id,
-            'krs_ruang_id'     => $request->krs_ruang_id,
-            'hari'             => $request->hari,
+            'krs_dosen_id'       => $request->krs_dosen_id,
+            'krs_dosen_kedua_id' => $request->krs_dosen_kedua_id,
+            'krs_ruang_id'       => $request->krs_ruang_id,
+            'hari'               => $request->hari,
             'krs_waktu_ids'    => $request->krs_waktu_ids,
             // Sementara false; validateConflicts() akan menghitung nilai sesungguhnya
             'is_conflict'      => false,
             'conflict_message' => null,
+            'is_locked'        => $isLocked,
         ]);
 
         $service->validateConflicts($plot->krs_period_id);
