@@ -199,9 +199,17 @@ class KrsCsvService
         $kodeDosenCol = false;
         $namaDosenCol = false;
         
+        $kodeCount = 0;
         foreach ($headers as $idx => $val) {
             $valLower = strtolower(trim($val ?? ''));
-            if ($valLower === 'kode') $kodeIndex = $idx;
+            if ($valLower === 'kode') {
+                if ($kodeCount === 0) {
+                    $kodeIndex = $idx;
+                } else {
+                    $kodeDosenCol = $idx;
+                }
+                $kodeCount++;
+            }
             elseif ($valLower === 'mata kuliah') $mkIndex = $idx;
             elseif ($valLower === 'sks') $sksIndex = $idx;
             elseif ($valLower === 'jenis_ruang') $ruangIndex = $idx;
