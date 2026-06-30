@@ -87,15 +87,20 @@ class KrsCsvService
     public function importCsv(UploadedFile $file, string $type, int $periodId, KrsMasterDataService $masterDataService): void
     {
         $extension = strtolower($file->getClientOriginalExtension());
-        $rows = $this->parseUploadedFile($file, $extension);
-
+        
         DB::beginTransaction();
         try {
             $masterDataService->deleteMasterDataByType($type, $periodId);
 
-            foreach ($rows as $data) {
-                if (empty(array_filter($data))) continue; // lewati baris kosong
-                $this->insertMasterDataRow($type, $periodId, $data);
+            if ($type === 'import_format_baru') {
+                $rows = $this->parseFormatBaru($file);
+                $this->importFormatBaru($rows, $periodId);
+            } else {
+                $rows = $this->parseUploadedFile($file, $extension);
+                foreach ($rows as $data) {
+                    if (empty(array_filter($data))) continue; // lewati baris kosong
+                    $this->insertMasterDataRow($type, $periodId, $data);
+                }
             }
 
             DB::commit();
@@ -150,9 +155,6 @@ class KrsCsvService
         return $rows;
     }
 
-    /**
-     * Parse file upload (CSV/TXT atau Excel) menjadi array baris data.
-     */
     private function parseUploadedFile(UploadedFile $file, string $extension): array
     {
         if (in_array($extension, ['csv', 'txt'])) {
@@ -166,18 +168,139 @@ class KrsCsvService
             return $rows;
         }
 
-        // Excel: gunakan Maatwebsite Excel
-        $import = new class implements \Maatwebsite\Excel\Concerns\ToArray {
-            public array $data = [];
-            public function array(array $array): void
-            {
-                $this->data = $array;
+        require_once app_path('Services/SimpleXLSX.php');
+        if ($xlsx = \Shuchkin\SimpleXLSX::parse($file->getRealPath())) {
+            $rows = $xlsx->rows();
+            if (count($rows) > 0) array_shift($rows);
+            return $rows;
+        }
+        return [];
+    }
+
+    private function parseFormatBaru(UploadedFile $file): array
+    {
+        require_once app_path('Services/SimpleXLSX.php');
+        if ($xlsx = \Shuchkin\SimpleXLSX::parse($file->getRealPath())) {
+            return $xlsx->rows();
+        }
+        return [];
+    }
+
+    private function importFormatBaru(array $rows, int $periodId): void
+    {
+        if (count($rows) === 0) return;
+        
+        $headers = array_shift($rows);
+        
+        $kodeIndex = false;
+        $mkIndex = false;
+        $sksIndex = false;
+        $ruangIndex = false;
+        $kodeDosenCol = false;
+        $namaDosenCol = false;
+        
+        foreach ($headers as $idx => $val) {
+            $valLower = strtolower(trim($val ?? ''));
+            if ($valLower === 'kode') $kodeIndex = $idx;
+            elseif ($valLower === 'mata kuliah') $mkIndex = $idx;
+            elseif ($valLower === 'sks') $sksIndex = $idx;
+            elseif ($valLower === 'jenis_ruang') $ruangIndex = $idx;
+            elseif ($valLower === 'kode.1' || str_starts_with($valLower, 'kode_dosen') || $valLower === 'kode dosen') $kodeDosenCol = $idx;
+            elseif ($valLower === 'nama') $namaDosenCol = $idx;
+        }
+
+        if ($kodeIndex === false) $kodeIndex = 0;
+        if ($mkIndex === false) $mkIndex = 1;
+        if ($sksIndex === false) $sksIndex = 2;
+        if ($ruangIndex === false) $ruangIndex = 12;
+        if ($kodeDosenCol === false) $kodeDosenCol = 14;
+        if ($namaDosenCol === false) $namaDosenCol = 15;
+        
+        $classColumns = [];
+        foreach ($headers as $index => $headerName) {
+            if (is_string($headerName) && stripos($headerName, 'kelas') !== false) {
+                $classColumns[$index] = trim(str_ireplace('kelas', '', $headerName));
             }
-        };
-        \Maatwebsite\Excel\Facades\Excel::import($import, $file);
-        $rows = $import->data[0] ?? [];
-        if (count($rows) > 0) array_shift($rows); // hapus baris header
-        return $rows;
+        }
+        
+        $dosenLookup = [];
+        foreach ($rows as $row) {
+            $kodeDosen = $row[$kodeDosenCol] ?? null;
+            $namaDosen = $row[$namaDosenCol] ?? null;
+            if ($kodeDosen && $namaDosen) {
+                $dosenLookup[trim($kodeDosen)] = trim($namaDosen);
+            }
+        }
+        
+        foreach ($rows as $row) {
+            $kodeMk = $row[$kodeIndex] ?? '';
+            if (empty($kodeMk)) continue;
+            
+            $namaMk = $row[$mkIndex] ?? '';
+            $sks = (int)($row[$sksIndex] ?? 0);
+            $jenisRuang = $row[$ruangIndex] ?? null;
+            
+            foreach ($classColumns as $colIndex => $kelas) {
+                $kelas = trim($kelas);
+                $dosenCodes = $row[$colIndex] ?? null;
+                if (empty($dosenCodes) || $dosenCodes === '-') continue;
+                
+                $mk = KrsMatakuliah::firstOrCreate(
+                    [
+                        'krs_period_id' => $periodId,
+                        'kode_mk'       => $kodeMk,
+                        'kelas'         => $kelas,
+                    ],
+                    [
+                        'nama_mk'     => $namaMk,
+                        'sks'         => $sks,
+                        'jenis_ruang' => $jenisRuang,
+                    ]
+                );
+                
+                $dosenCodesArr = explode('/', $dosenCodes);
+                $dosenId = null;
+                $dosenKeduaId = null;
+                
+                foreach ($dosenCodesArr as $i => $dCode) {
+                    $dCode = trim($dCode);
+                    if (empty($dCode) || $dCode === '-') continue;
+                    
+                    $namaDosen = $dosenLookup[$dCode] ?? $dCode;
+                    
+                    $dosen = KrsDosen::firstOrCreate(
+                        [
+                            'krs_period_id' => $periodId,
+                            'kode_mk'       => $kodeMk,
+                            'kelas'         => $kelas,
+                            'nama_dosen'    => $namaDosen,
+                        ],
+                        [
+                            'prioritas' => null,
+                            'max_sks'   => null,
+                        ]
+                    );
+                    
+                    if ($i === 0) $dosenId = $dosen->id;
+                    if ($i === 1) $dosenKeduaId = $dosen->id;
+                }
+                
+                $plot = KrsJadwalPlot::firstOrCreate(
+                    [
+                        'krs_period_id'     => $periodId,
+                        'krs_matakuliah_id' => $mk->id,
+                    ],
+                    [
+                        'is_conflict'      => false,
+                        'conflict_message' => null,
+                    ]
+                );
+
+                $plot->krs_dosen_id = $dosenId ?? $plot->krs_dosen_id;
+                $plot->krs_dosen_kedua_id = $dosenKeduaId ?? $plot->krs_dosen_kedua_id;
+                $plot->save();
+            }
+        }
     }
 
     /**

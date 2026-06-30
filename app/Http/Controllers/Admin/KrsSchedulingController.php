@@ -226,7 +226,7 @@ class KrsSchedulingController extends Controller
     public function importCsv(Request $request)
     {
         $request->validate([
-            'type'      => 'required|in:matakuliah,dosen,ruang,waktu,import_lengkap',
+            'type'      => 'required|in:matakuliah,dosen,ruang,waktu,import_lengkap,import_format_baru',
             'file'      => 'required|file|mimes:csv,txt,xlsx,xls',
             'period_id' => 'required|exists:krs_periods,id',
         ]);
@@ -345,7 +345,7 @@ class KrsSchedulingController extends Controller
     public function plotOtomatis(Request $request, KrsPlottingService $service)
     {
         $request->validate(['period_id' => 'required|exists:krs_periods,id']);
-        $service->plotAuto($request->period_id, $request->batasan_waktu, $request->batasan_waktu_2, $request->batasan_waktu_3);
+        $service->plotAuto($request->period_id, $request->batasan_waktu, $request->batasan_waktu_2, $request->batasan_waktu_3, $request->batasan_ruangan);
         return redirect()->back()->with('success', 'Ploting otomatis selesai.');
     }
 
@@ -372,6 +372,7 @@ class KrsSchedulingController extends Controller
                 $request->batasan_waktu, 
                 $request->batasan_waktu_2, 
                 $request->batasan_waktu_3,
+                $request->batasan_ruangan,
                 15 // Max iterations (Sets)
             );
         }, 200, [
@@ -385,14 +386,16 @@ class KrsSchedulingController extends Controller
     public function resetPlot(Request $request)
     {
         $request->validate(['period_id' => 'required|exists:krs_periods,id']);
-        KrsJadwalPlot::where('krs_period_id', $request->period_id)->update([
-            'krs_ruang_id'     => null,
-            'hari'             => null,
-            'krs_waktu_ids'    => null,
-            'is_conflict'      => false,
-            'conflict_message' => null,
-        ]);
-        return redirect()->back()->with('success', 'Plot berhasil direset (Dosen tetap dipertahankan).');
+        KrsJadwalPlot::where('krs_period_id', $request->period_id)
+            ->where('is_locked', false)
+            ->update([
+                'krs_ruang_id'     => null,
+                'hari'             => null,
+                'krs_waktu_ids'    => null,
+                'is_conflict'      => false,
+                'conflict_message' => null,
+            ]);
+        return redirect()->back()->with('success', 'Plot berhasil direset (Jadwal yang terkunci tetap dipertahankan).');
     }
 
     public function resetSemuaPlot(Request $request)
@@ -412,8 +415,6 @@ class KrsSchedulingController extends Controller
     {
         $plot = KrsJadwalPlot::findOrFail($id);
 
-        $isLocked = !empty($request->hari) && !empty($request->krs_ruang_id) && !empty($request->krs_waktu_ids);
-
         $plot->update([
             'krs_dosen_id'       => $request->krs_dosen_id,
             'krs_dosen_kedua_id' => $request->krs_dosen_kedua_id,
@@ -423,7 +424,7 @@ class KrsSchedulingController extends Controller
             // Sementara false; validateConflicts() akan menghitung nilai sesungguhnya
             'is_conflict'      => false,
             'conflict_message' => null,
-            'is_locked'        => $isLocked,
+            'is_locked'        => $request->boolean('is_locked'),
         ]);
 
         $service->validateConflicts($plot->krs_period_id);

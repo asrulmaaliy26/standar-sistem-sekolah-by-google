@@ -83,6 +83,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         krs_ruang_id: '',
         hari: 'Senin',
         krs_waktu_ids: [] as number[],
+        is_locked: false,
     });
 
     const [editTimes, setEditTimes] = useState<string[]>([]);
@@ -92,7 +93,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('Semua');
-    const [activeTab, setActiveTab] = useState<'mapel' | 'dosen' | 'ruang'>('mapel');
+    const [activeTab, setActiveTab] = useState<'mapel' | 'dosen' | 'ruang' | 'hari'>('mapel');
+    const [activeImportTab, setActiveImportTab] = useState<'baru' | 'lama' | 'lengkap'>('baru');
 
     const uniqueDosensList = React.useMemo(() => {
         if (!editPlot) return [];
@@ -158,7 +160,23 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         }
     });
 
-    const [activeRuleTab, setActiveRuleTab] = useState<'aturan1' | 'aturan2' | 'aturan3'>('aturan1');
+    const [ruleAbaikanJenis, setRuleAbaikanJenis] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('krs_rule_abaikan_jenis') || 'false');
+        } catch {
+            return false;
+        }
+    });
+
+    const [ruleTanpaRuangan, setRuleTanpaRuangan] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('krs_rule_tanpa_ruangan') || 'false');
+        } catch {
+            return false;
+        }
+    });
+
+    const [activeRuleTab, setActiveRuleTab] = useState<'aturan1' | 'aturan2' | 'aturan3' | 'aturan4'>('aturan1');
 
     // Streaming states
     const [isPlotting, setIsPlotting] = useState(false);
@@ -175,7 +193,9 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         localStorage.setItem('krs_rule2_end', rule2EndSlot.toString());
         localStorage.setItem('krs_rule2_mks', JSON.stringify(rule2MkCodes));
         localStorage.setItem('krs_rule3_active', JSON.stringify(rule3Active));
-    }, [ruleActive, ruleStartSlot, ruleEndSlot, ruleMkCodes, rule2Active, rule2StartSlot, rule2EndSlot, rule2MkCodes, rule3Active]);
+        localStorage.setItem('krs_rule_abaikan_jenis', JSON.stringify(ruleAbaikanJenis));
+        localStorage.setItem('krs_rule_tanpa_ruangan', JSON.stringify(ruleTanpaRuangan));
+    }, [ruleActive, ruleStartSlot, ruleEndSlot, ruleMkCodes, rule2Active, rule2StartSlot, rule2EndSlot, rule2MkCodes, rule3Active, ruleAbaikanJenis, ruleTanpaRuangan]);
 
     const [genJamMulai, setGenJamMulai] = useState('07:00');
     const [genDurasi, setGenDurasi] = useState(40);
@@ -349,6 +369,10 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                     },
                     batasan_waktu_3: {
                         aktif: rule3Active,
+                    },
+                    batasan_ruangan: {
+                        abaikan_jenis: ruleAbaikanJenis,
+                        tanpa_ruangan: ruleTanpaRuangan,
                     },
                 })
             });
@@ -552,102 +576,199 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                         </div>
 
                         {/* Import Section */}
-                        <div className="bg-card text-card-foreground border-border rounded-xl border p-6 shadow-sm">
-                            <div className="mb-4 flex items-center justify-between">
-                                <h2 className="flex items-center gap-2 font-semibold">
+                        <div className="bg-card text-card-foreground border-border mb-6 rounded-xl border p-6 shadow-sm">
+                            <div className="mb-4 flex items-center justify-between border-b pb-4">
+                                <h2 className="flex items-center gap-2 text-lg font-bold">
                                     <Upload className="h-5 w-5" /> Import Data Master
                                 </h2>
-                                <a
-                                    href={route('admin.krs.template', importData.type)}
-                                    className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-600 shadow-sm transition-colors hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-                                >
-                                    <Download className="h-4 w-4" /> Unduh Template
-                                </a>
                             </div>
-                            <form onSubmit={handleImport} className="flex items-end gap-4">
-                                <div>
-                                    <label className="mb-1 block text-xs">Jenis Data</label>
-                                    <select
-                                        className="border-input rounded border bg-white p-2 text-slate-900 dark:bg-slate-950 dark:text-slate-50"
-                                        value={importData.type}
-                                        onChange={(e) => setImportData('type', e.target.value)}
-                                    >
-                                        <option value="matakuliah">1. Mapel & Kelas</option>
-                                        <option value="dosen" disabled={!isMatakuliahUploaded}>
-                                            2. Pendidik & Distribusi Mapel
-                                        </option>
-                                        <option value="ruang" disabled={!isMatakuliahUploaded}>
-                                            3. List Ruang
-                                        </option>
-                                    </select>
-                                    {!isMatakuliahUploaded && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">Upload Mapel dulu.</p>}
-                                </div>
-                                <div>
-                                    <label className="mb-1 block text-xs">File (CSV / XLSX)</label>
-                                    <input
-                                        type="file"
-                                        accept=".csv,.txt,.xlsx,.xls"
-                                        onChange={(e) => setImportData('file', e.target.files?.[0] || null)}
-                                        className="border-input file:bg-primary/10 file:text-primary hover:file:bg-primary/20 w-64 rounded border bg-white p-1.5 text-slate-900 file:mr-2 file:rounded-md file:border-0 file:px-2 file:py-1 file:text-sm file:font-semibold dark:bg-slate-950 dark:text-slate-50"
-                                    />
-                                </div>
-                                <button type="submit" className="rounded bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700">
-                                    Upload & Import
+
+                            {/* Tabs Header */}
+                            <div className="mb-6 flex gap-6 border-b">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveImportTab('baru')}
+                                    className={`pb-2 font-semibold transition-colors ${activeImportTab === 'baru' ? 'border-pink-600 text-pink-600 border-b-2 dark:border-pink-500 dark:text-pink-400' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                    Import Format Baru (Excel Pivot)
                                 </button>
-                            </form>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveImportTab('lengkap')}
+                                    className={`pb-2 font-semibold transition-colors ${activeImportTab === 'lengkap' ? 'border-violet-600 text-violet-600 border-b-2 dark:border-violet-500 dark:text-violet-400' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                    Import Lengkap
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveImportTab('lama')}
+                                    className={`pb-2 font-semibold transition-colors ${activeImportTab === 'lama' ? 'border-blue-600 text-blue-600 border-b-2 dark:border-blue-500 dark:text-blue-400' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                    Import Bertahap
+                                </button>
+                            </div>
+
+                            {/* Tab Content */}
+                            {activeImportTab === 'baru' && (
+                                <div className="rounded-lg border border-pink-200 p-5 dark:border-pink-900/50">
+                                    <div className="mb-4 flex items-start justify-between sm:items-center">
+                                        <div>
+                                            <h3 className="flex items-center gap-2 font-semibold text-pink-700 dark:text-pink-400">
+                                                <FileText className="h-5 w-5" /> Import Format Baru (Excel Pivot)
+                                            </h3>
+                                            <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+                                                Gunakan ini untuk mengunggah file Excel template baru yang memiliki kolom kode, mapel, SKS, kelas-kelas, serta daftar dosen di sisi kanannya.
+                                            </p>
+                                        </div>
+                                        <a
+                                            href="/templates/template_baru.xlsx"
+                                            download="template_baru.xlsx"
+                                            className="ml-4 flex shrink-0 items-center gap-2 rounded-md border border-pink-200 bg-pink-50 px-3 py-1.5 text-sm font-semibold text-pink-600 shadow-sm transition-colors hover:bg-pink-100 dark:border-pink-800 dark:bg-pink-900/30 dark:text-pink-400 dark:hover:bg-pink-900/50"
+                                        >
+                                            <Download className="h-4 w-4" /> Unduh Template Baru
+                                        </a>
+                                    </div>
+                                    <form
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            const fileInput = (e.target as HTMLFormElement).querySelector('input[type=file]') as HTMLInputElement;
+                                            const file = fileInput?.files?.[0];
+                                            if (!file) return alert('Pilih file Excel terlebih dahulu');
+                                            const formData = new FormData();
+                                            formData.append('type', 'import_format_baru');
+                                            formData.append('file', file);
+                                            formData.append('period_id', String(activePeriodId ?? ''));
+                                            router.post(route('admin.krs.import'), formData, {
+                                                forceFormData: true,
+                                                onSuccess: () => fileInput && (fileInput.value = ''),
+                                            });
+                                        }}
+                                        className="flex flex-wrap items-end gap-4"
+                                    >
+                                        <div>
+                                            <label className="mb-1 block text-xs font-medium">File Excel (.xlsx)</label>
+                                            <input
+                                                type="file"
+                                                accept=".xlsx,.xls"
+                                                className="border-input w-72 rounded border bg-white p-1.5 text-slate-900 file:mr-2 file:rounded-md file:border-0 file:bg-pink-500/10 file:px-2 file:py-1 file:text-sm file:font-semibold file:text-pink-600 hover:file:bg-pink-500/20 dark:bg-slate-950 dark:text-slate-50"
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="flex items-center gap-2 rounded bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-pink-700 transition-colors"
+                                        >
+                                            <Upload className="h-4 w-4" /> Upload &amp; Import Format Baru
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
+
+                            {activeImportTab === 'lengkap' && (
+                                <div className="rounded-lg border border-violet-200 p-5 dark:border-violet-900/50">
+                                    <div className="mb-4 flex items-start justify-between sm:items-center">
+                                        <div>
+                                            <h3 className="flex items-center gap-2 font-semibold text-violet-700 dark:text-violet-400">
+                                                <FileText className="h-5 w-5" /> Import Lengkap (Mapel + Pendidik)
+                                            </h3>
+                                            <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+                                                Gunakan jika data Mapel &amp; Pendidik <strong>belum ada</strong>. Satu file CSV akan mengisi Mapel, Pendidik Utama, dan Pendidik Pendamping secara otomatis.
+                                            </p>
+                                        </div>
+                                        <a
+                                            href={route('admin.krs.template', 'import_lengkap')}
+                                            className="ml-4 flex shrink-0 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-600 shadow-sm transition-colors hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/30 dark:text-violet-400 dark:hover:bg-violet-900/50"
+                                        >
+                                            <Download className="h-4 w-4" /> Unduh Template Lengkap
+                                        </a>
+                                    </div>
+                                    <form
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            const fileInput = (e.target as HTMLFormElement).querySelector('input[type=file]') as HTMLInputElement;
+                                            const file = fileInput?.files?.[0];
+                                            if (!file) return alert('Pilih file CSV terlebih dahulu');
+                                            const formData = new FormData();
+                                            formData.append('type', 'import_lengkap');
+                                            formData.append('file', file);
+                                            formData.append('period_id', String(activePeriodId ?? ''));
+                                            router.post(route('admin.krs.import'), formData, {
+                                                forceFormData: true,
+                                                onSuccess: () => fileInput && (fileInput.value = ''),
+                                            });
+                                        }}
+                                        className="flex flex-wrap items-end gap-4"
+                                    >
+                                        <div>
+                                            <label className="mb-1 block text-xs font-medium">File CSV / XLSX</label>
+                                            <input
+                                                type="file"
+                                                accept=".csv,.txt,.xlsx,.xls"
+                                                className="border-input w-72 rounded border bg-white p-1.5 text-slate-900 file:mr-2 file:rounded-md file:border-0 file:bg-violet-500/10 file:px-2 file:py-1 file:text-sm file:font-semibold file:text-violet-600 hover:file:bg-violet-500/20 dark:bg-slate-950 dark:text-slate-50"
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-violet-700 transition-colors"
+                                        >
+                                            <Upload className="h-4 w-4" /> Upload &amp; Import Lengkap
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
+
+                            {activeImportTab === 'lama' && (
+                                <div className="rounded-lg border border-blue-200 p-5 dark:border-blue-900/50">
+                                    <div className="mb-4 flex items-start justify-between sm:items-center">
+                                        <div>
+                                            <h3 className="flex items-center gap-2 font-semibold text-blue-700 dark:text-blue-400">
+                                                <FileText className="h-5 w-5" /> Import Bertahap
+                                            </h3>
+                                            <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+                                                Gunakan untuk mengunggah Mapel, Pendidik, dan Ruangan secara terpisah-pisah.
+                                            </p>
+                                        </div>
+                                        <a
+                                            href={route('admin.krs.template', importData.type)}
+                                            className="ml-4 flex shrink-0 items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-600 shadow-sm transition-colors hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+                                        >
+                                            <Download className="h-4 w-4" /> Unduh Template
+                                        </a>
+                                    </div>
+                                    <form onSubmit={handleImport} className="flex flex-wrap items-end gap-4">
+                                        <div>
+                                            <label className="mb-1 block text-xs font-medium">Jenis Data</label>
+                                            <select
+                                                className="border-input rounded border bg-white p-2 text-slate-900 dark:bg-slate-950 dark:text-slate-50 min-w-[200px]"
+                                                value={importData.type}
+                                                onChange={(e) => setImportData('type', e.target.value)}
+                                            >
+                                                <option value="matakuliah">1. Mapel & Kelas</option>
+                                                <option value="dosen" disabled={!isMatakuliahUploaded}>
+                                                    2. Pendidik & Distribusi Mapel
+                                                </option>
+                                                <option value="ruang" disabled={!isMatakuliahUploaded}>
+                                                    3. List Ruang
+                                                </option>
+                                            </select>
+                                            {!isMatakuliahUploaded && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">Upload Mapel dulu.</p>}
+                                        </div>
+                                        <div>
+                                            <label className="mb-1 block text-xs font-medium">File (CSV / XLSX)</label>
+                                            <input
+                                                type="file"
+                                                accept=".csv,.txt,.xlsx,.xls"
+                                                onChange={(e) => setImportData('file', e.target.files?.[0] || null)}
+                                                className="border-input file:bg-blue-600/10 file:text-blue-600 hover:file:bg-blue-600/20 w-64 rounded border bg-white p-1.5 text-slate-900 file:mr-2 file:rounded-md file:border-0 file:px-2 file:py-1 file:text-sm file:font-semibold dark:bg-slate-950 dark:text-slate-50"
+                                            />
+                                        </div>
+                                        <button type="submit" className="flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition-colors">
+                                            <Upload className="h-4 w-4" /> Upload &amp; Import
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Import Lengkap Card */}
-                        <div className="bg-card text-card-foreground border-border mb-6 rounded-xl border border-violet-200 p-6 shadow-sm dark:border-violet-800">
-                            <div className="mb-4 flex items-center justify-between">
-                                <div>
-                                    <h2 className="flex items-center gap-2 font-semibold text-violet-700 dark:text-violet-300">
-                                        <FileText className="h-5 w-5" /> Import Lengkap (Mapel + Pendidik Sekaligus)
-                                    </h2>
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        Gunakan jika data Mapel &amp; Pendidik <strong>belum ada</strong>. Satu file CSV akan mengisi Mapel, Pendidik Utama, dan Pendidik Pendamping secara otomatis.
-                                    </p>
-                                </div>
-                                <a
-                                    href={route('admin.krs.template', 'import_lengkap')}
-                                    className="ml-4 flex shrink-0 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-600 shadow-sm transition-colors hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/30 dark:text-violet-400 dark:hover:bg-violet-900/50"
-                                >
-                                    <Download className="h-4 w-4" /> Unduh Template Lengkap
-                                </a>
-                            </div>
-                            <form
-                                onSubmit={(e) => {
-                                    e.preventDefault();
-                                    const fileInput = (e.target as HTMLFormElement).querySelector('input[type=file]') as HTMLInputElement;
-                                    const file = fileInput?.files?.[0];
-                                    if (!file) return alert('Pilih file CSV terlebih dahulu');
-                                    const formData = new FormData();
-                                    formData.append('type', 'import_lengkap');
-                                    formData.append('file', file);
-                                    formData.append('period_id', String(activePeriodId ?? ''));
-                                    router.post(route('admin.krs.import'), formData, {
-                                        forceFormData: true,
-                                        onSuccess: () => fileInput && (fileInput.value = ''),
-                                    });
-                                }}
-                                className="flex items-end gap-4"
-                            >
-                                <div>
-                                    <label className="mb-1 block text-xs">File CSV / XLSX</label>
-                                    <input
-                                        type="file"
-                                        accept=".csv,.txt,.xlsx,.xls"
-                                        className="border-input w-72 rounded border bg-white p-1.5 text-slate-900 file:mr-2 file:rounded-md file:border-0 file:bg-violet-500/10 file:px-2 file:py-1 file:text-sm file:font-semibold file:text-violet-600 hover:file:bg-violet-500/20 dark:bg-slate-950 dark:text-slate-50"
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    className="flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
-                                >
-                                    <Upload className="h-4 w-4" /> Upload &amp; Import Lengkap
-                                </button>
-                            </form>
-                        </div>
 
                         {/* Readiness Analysis */}
                         {readiness_data && (
@@ -794,6 +915,12 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                     className={`px-4 py-2 text-sm font-semibold transition-colors ${activeRuleTab === 'aturan3' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-muted-foreground hover:text-foreground'}`}
                                 >
                                     Aturan Beban Dosen
+                                </button>
+                                <button
+                                    onClick={() => setActiveRuleTab('aturan4')}
+                                    className={`px-4 py-2 text-sm font-semibold transition-colors ${activeRuleTab === 'aturan4' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                    Fleksibilitas Ruangan
                                 </button>
                             </div>
 
@@ -978,6 +1105,42 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                     )}
                                 </div>
                             )}
+
+                            {/* Content Aturan 4 */}
+                            {activeRuleTab === 'aturan4' && (
+                                <div className="bg-card text-card-foreground border-border rounded-xl border p-5 shadow-sm space-y-4">
+                                    <label className="flex cursor-pointer items-start gap-2 font-semibold">
+                                        <input
+                                            type="checkbox"
+                                            className="mt-1 h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"
+                                            checked={ruleAbaikanJenis}
+                                            onChange={(e) => setRuleAbaikanJenis(e.target.checked)}
+                                        />
+                                        <div>
+                                            <span>Abaikan Jenis / Kapasitas Ruangan</span>
+                                            <p className="text-xs font-normal text-muted-foreground mt-1">
+                                                Jika diaktifkan, kelas dapat diplot ke ruangan mana saja terlepas dari jenis atau kapasitas ruangan (Kelas Besar bisa menempati ruang kecil).
+                                            </p>
+                                        </div>
+                                    </label>
+
+                                    <label className="flex cursor-pointer items-start gap-2 font-semibold border-t pt-4">
+                                        <input
+                                            type="checkbox"
+                                            className="mt-1 h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"
+                                            checked={ruleTanpaRuangan}
+                                            onChange={(e) => setRuleTanpaRuangan(e.target.checked)}
+                                        />
+                                        <div>
+                                            <span>Plot Tanpa Ruangan (Hanya Tentukan Hari & Jam)</span>
+                                            <p className="text-xs font-normal text-muted-foreground mt-1">
+                                                Jika diaktifkan, sistem hanya akan menjadwalkan hari dan jam saja, tanpa mengalokasikan ruang fisik. Cocok untuk kelas daring/luar ruangan.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                            )}
+
                         </div>
 
                         {/* Kesimpulan Kalkulasi */}
@@ -1366,6 +1529,22 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                         );
                                                     })}
                                                 </div>
+                                            </div>
+                                            <div className="pt-2 border-t mt-4">
+                                                <label className="flex cursor-pointer items-start gap-2 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="mt-1 h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"
+                                                        checked={editData.is_locked}
+                                                        onChange={(e) => setEditData('is_locked', e.target.checked)}
+                                                    />
+                                                    <div>
+                                                        <span>Kunci Jadwal Ini (Lock)</span>
+                                                        <p className="text-xs font-normal text-muted-foreground mt-0.5">
+                                                            Jika dikunci, jadwal ini tidak akan digeser/direset oleh proses Auto Plotting.
+                                                        </p>
+                                                    </div>
+                                                </label>
                                             </div>
                                         </div>
 

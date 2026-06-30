@@ -176,6 +176,7 @@ export default function TabHari({ plots, waktus = [], ruangs = [], setEditPlot, 
                                                                                 krs_ruang_id: p.krs_ruang_id?.toString() || '',
                                                                                 krs_waktu_ids: p.krs_waktu_ids || [],
                                                                                 hari: p.hari || 'Senin',
+                                                                                is_locked: p.is_locked || false,
                                                                             });
                                                                             setEditTimes([]);
                                                                         }}
@@ -400,6 +401,7 @@ export default function TabHari({ plots, waktus = [], ruangs = [], setEditPlot, 
                                                     krs_ruang_id: selectPlotModal.ruangId.toString(),
                                                     hari: selectPlotModal.hari,
                                                     krs_waktu_ids: [],
+                                                    is_locked: false,
                                                 });
                                                 const timeStr = `${selectPlotModal.waktu.jam_mulai.slice(0, 5)} - ${selectPlotModal.waktu.jam_selesai.slice(0, 5)}`;
                                                 setEditTimes([timeStr]);

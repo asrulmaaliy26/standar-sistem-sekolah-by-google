@@ -217,6 +217,7 @@ export default function TabPendidik({
                                                                         krs_ruang_id: p.krs_ruang_id?.toString() || '',
                                                                         hari: p.hari || 'Senin',
                                                                         krs_waktu_ids: p.krs_waktu_ids || [],
+                                                                        is_locked: p.is_locked || false,
                                                                     });
                                                                     if (p.waktu_details && p.waktu_details.length > 0) {
                                                                         setEditTimes(

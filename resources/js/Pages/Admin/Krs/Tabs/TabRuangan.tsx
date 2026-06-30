@@ -128,6 +128,7 @@ export default function TabRuangan({
                                                                                 krs_ruang_id: plot.krs_ruang_id?.toString() || '',
                                                                                 hari: plot.hari || 'Senin',
                                                                                 krs_waktu_ids: plot.krs_waktu_ids || [],
+                                                                                is_locked: plot.is_locked || false,
                                                                             });
                                                                             if (plot.waktu_details && plot.waktu_details.length > 0) {
                                                                                 setEditTimes(
@@ -216,6 +217,7 @@ export default function TabRuangan({
                                                 krs_ruang_id: selectPlotModal.ruangId.toString(),
                                                 hari: selectPlotModal.hari,
                                                 krs_waktu_ids: [],
+                                                is_locked: false,
                                             });
                                             const timeStr = `${selectPlotModal.waktu.jam_mulai.slice(0, 5)} - ${selectPlotModal.waktu.jam_selesai.slice(0, 5)}`;
                                             setEditTimes([timeStr]);

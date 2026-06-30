@@ -96,7 +96,7 @@ class KrsMasterDataService
         match ($type) {
             'matakuliah'     => KrsMatakuliah::where('krs_period_id', $periodId)->delete(),
             'dosen'          => KrsDosen::where('krs_period_id', $periodId)->delete(),
-            'import_lengkap' => $this->deleteImportLengkap($periodId),
+            'import_lengkap', 'import_format_baru' => $this->deleteImportLengkap($periodId),
             'ruang'          => $this->deleteRuangAndAddDaring($periodId),
             'waktu'          => $this->deleteWaktuAndClearPlots($periodId),
         };

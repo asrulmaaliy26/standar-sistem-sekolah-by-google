@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class KrsPlottingService
 {
-    public function plotAutoIterative($periodId, $batasanWaktu = null, $batasanWaktu2 = null, $batasanWaktu3 = null, $maxSets = 15)
+    public function plotAutoIterative($periodId, $batasanWaktu = null, $batasanWaktu2 = null, $batasanWaktu3 = null, $batasanRuangan = null, $maxSets = 15)
     {
         $pad = ": " . str_repeat(' ', 65536) . "\n\n";
         echo "data: " . json_encode(['iteration' => 1, 'message' => "Set 1: Inisiasi plotting pertama..."]) . "\n\n" . $pad;
@@ -133,7 +133,7 @@ class KrsPlottingService
             }
 
             // RECREATE step:
-            $this->plotAutoCore($periodId, $batasanWaktu, $batasanWaktu2, $batasanWaktu3, true);
+            $this->plotAutoCore($periodId, $batasanWaktu, $batasanWaktu2, $batasanWaktu3, $batasanRuangan, true);
             
             // Validasi ulang untuk memastikan status konflik termutakhir
             $this->validateConflicts($periodId);
@@ -219,12 +219,12 @@ class KrsPlottingService
         return $conflicts + $overloads;
     }
 
-    public function plotAuto($periodId, $batasanWaktu = null, $batasanWaktu2 = null, $batasanWaktu3 = null)
+    public function plotAuto($periodId, $batasanWaktu = null, $batasanWaktu2 = null, $batasanWaktu3 = null, $batasanRuangan = null)
     {
-        $this->plotAutoCore($periodId, $batasanWaktu, $batasanWaktu2, $batasanWaktu3, false);
+        $this->plotAutoCore($periodId, $batasanWaktu, $batasanWaktu2, $batasanWaktu3, $batasanRuangan, false);
     }
 
-    public function plotAutoCore($periodId, $batasanWaktu = null, $batasanWaktu2 = null, $batasanWaktu3 = null, $isRecreate = false)
+    public function plotAutoCore($periodId, $batasanWaktu = null, $batasanWaktu2 = null, $batasanWaktu3 = null, $batasanRuangan = null, $isRecreate = false)
     {
         $period = KrsPeriod::findOrFail($periodId);
 
@@ -239,6 +239,9 @@ class KrsPlottingService
         $rule2MkCodes = $batasanWaktu2['kode_mps'] ?? [];
 
         $rule3Active = $batasanWaktu3['aktif'] ?? true;
+
+        $ruleAbaikanJenis = $batasanRuangan['abaikan_jenis'] ?? false;
+        $ruleTanpaRuangan = $batasanRuangan['tanpa_ruangan'] ?? false;
 
         // Get all matakuliah for the period
         $matakuliahsRaw = KrsMatakuliah::where('krs_period_id', $periodId)
@@ -499,22 +502,28 @@ class KrsPlottingService
                                     usort($sortedRuangs, fn($a, $b) => ($roomLoad[$a->id] ?? 0) <=> ($roomLoad[$b->id] ?? 0));
 
                                     $roomForBlock = null;
-                                    foreach ($sortedRuangs as $ruang) {
-                                        if (!empty($mk->jenis_ruang)) {
-                                            if (strtolower(trim($ruang->kapasitas)) !== strtolower(trim($mk->jenis_ruang))) {
-                                                continue;
+
+                                    if ($ruleTanpaRuangan) {
+                                        // Fake room object so it passes the check below
+                                        $roomForBlock = (object)['id' => null, 'nama_ruang' => 'Tanpa Ruangan'];
+                                    } else {
+                                        foreach ($sortedRuangs as $ruang) {
+                                            if (!$ruleAbaikanJenis && !empty($mk->jenis_ruang)) {
+                                                if (strtolower(trim($ruang->kapasitas)) !== strtolower(trim($mk->jenis_ruang))) {
+                                                    continue;
+                                                }
                                             }
-                                        }
-                                        $roomAvailable = true;
-                                        foreach ($blockIds as $bwId) {
-                                            if (isset($roomUsage[$hari][$ruang->id][$bwId])) {
-                                                $roomAvailable = false;
+                                            $roomAvailable = true;
+                                            foreach ($blockIds as $bwId) {
+                                                if (isset($roomUsage[$hari][$ruang->id][$bwId])) {
+                                                    $roomAvailable = false;
+                                                    break;
+                                                }
+                                            }
+                                            if ($roomAvailable) {
+                                                $roomForBlock = $ruang;
                                                 break;
                                             }
-                                        }
-                                        if ($roomAvailable) {
-                                            $roomForBlock = $ruang;
-                                            break;
                                         }
                                     }
 
