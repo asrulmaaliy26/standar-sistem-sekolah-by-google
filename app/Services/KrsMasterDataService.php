@@ -172,12 +172,21 @@ class KrsMasterDataService
                 : null;
 
             for ($i = 0; $i < $jumlahSlot; $i++) {
-                // Lewati slot yang overlap dengan jam istirahat
+                // Periksa apakah slot ini overlap dengan jam istirahat
                 if ($istirahatMulai && $istirahatSelesai) {
                     if (
                         $currentTime->format('H:i') >= $istirahatMulai->format('H:i') &&
                         $currentTime->format('H:i') < $istirahatSelesai->format('H:i')
                     ) {
+                        // Insert jam istirahat sebagai KrsWaktu
+                        KrsWaktu::create([
+                            'krs_period_id' => $periodId,
+                            'jam_mulai'     => $istirahatMulai->format('H:i'),
+                            'jam_selesai'   => $istirahatSelesai->format('H:i'),
+                            'durasi_menit'  => $istirahatMulai->diffInMinutes($istirahatSelesai),
+                            'is_istirahat'  => true,
+                        ]);
+
                         $currentTime = $istirahatSelesai->copy();
                     }
                 }
@@ -191,6 +200,7 @@ class KrsMasterDataService
                     'jam_mulai'     => $jamMulai,
                     'jam_selesai'   => $jamSelesai,
                     'durasi_menit'  => $durasiSks,
+                    'is_istirahat'  => false,
                 ]);
             }
         });

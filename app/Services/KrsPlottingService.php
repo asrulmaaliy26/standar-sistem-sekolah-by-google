@@ -36,7 +36,7 @@ class KrsPlottingService
                 'conflict_message' => null
             ]);
 
-        $this->plotAutoCore($periodId, $batasanWaktu, $batasanWaktu2, $batasanWaktu3, false);
+        $this->plotAutoCore($periodId, $batasanWaktu, $batasanWaktu2, $batasanWaktu3, $batasanRuangan, false);
         $score = $this->calculateScore($periodId, $batasanWaktu3);
 
         echo "data: " . json_encode(['iteration' => 1, 'score' => $score, 'message' => "Set 1 selesai. Sisa Konflik & Overload: $score"]) . "\n\n" . $pad;
@@ -243,6 +243,36 @@ class KrsPlottingService
         $ruleAbaikanJenis = $batasanRuangan['abaikan_jenis'] ?? false;
         $ruleTanpaRuangan = $batasanRuangan['tanpa_ruangan'] ?? false;
 
+        if ($ruleTanpaRuangan && !$isRecreate) {
+            $uniqueKelas = KrsMatakuliah::where('krs_period_id', $periodId)
+                ->pluck('kelas')
+                ->map(function($k) { return explode(',', $k); })
+                ->flatten()
+                ->map(function($k) { return trim($k); })
+                ->unique()
+                ->filter();
+            $existingRuangs = KrsRuang::where('krs_period_id', $periodId)->get();
+            foreach ($uniqueKelas as $kelasName) {
+                $kelasName = trim($kelasName);
+                if (empty($kelasName)) continue;
+                
+                $exists = $existingRuangs->contains(function($r) use ($kelasName) {
+                    return strcasecmp(trim($r->nama_ruang), $kelasName) === 0 || strcasecmp(trim($r->kode_ruang), $kelasName) === 0;
+                });
+                
+                if (!$exists) {
+                    $newRuang = KrsRuang::create([
+                        'krs_period_id' => $periodId,
+                        'kode_ruang' => strtoupper(str_replace(' ', '_', $kelasName)),
+                        'nama_ruang' => $kelasName,
+                        'kapasitas' => '40', // Default kapasitas kelas
+                    ]);
+                    $existingRuangs->push($newRuang);
+                }
+            }
+            // Update the fetched ruangs in the DB context so the new rooms are picked up
+        }
+
         // Get all matakuliah for the period
         $matakuliahsRaw = KrsMatakuliah::where('krs_period_id', $periodId)
             ->orderBy('sks', 'desc')
@@ -337,6 +367,7 @@ class KrsPlottingService
         }
 
         $waktus = KrsWaktu::where('krs_period_id', $periodId)
+            ->where('is_istirahat', false)
             ->orderBy('jam_mulai', 'asc')
             ->get();
         if ($waktus->isEmpty()) {
@@ -504,8 +535,26 @@ class KrsPlottingService
                                     $roomForBlock = null;
 
                                     if ($ruleTanpaRuangan) {
-                                        // Fake room object so it passes the check below
-                                        $roomForBlock = (object)['id' => null, 'nama_ruang' => 'Tanpa Ruangan'];
+                                        // Cari ruang yang namanya sama dengan nama kelas ($mk->kelas)
+                                        // Jika multiple (dipisah koma), ambil yang pertama
+                                        $className = trim(explode(',', $mk->kelas)[0] ?? '');
+                                        $roomForBlock = collect($sortedRuangs)->first(function($r) use ($className) {
+                                            return strcasecmp(trim($r->nama_ruang), $className) === 0 || 
+                                                   strcasecmp(trim($r->kode_ruang), $className) === 0;
+                                        });
+
+                                        if ($roomForBlock) {
+                                            $roomAvailable = true;
+                                            foreach ($blockIds as $bwId) {
+                                                if (isset($roomUsage[$hari][$roomForBlock->id][$bwId])) {
+                                                    $roomAvailable = false;
+                                                    break;
+                                                }
+                                            }
+                                            if (!$roomAvailable) {
+                                                $roomForBlock = null;
+                                            }
+                                        }
                                     } else {
                                         foreach ($sortedRuangs as $ruang) {
                                             if (!$ruleAbaikanJenis && !empty($mk->jenis_ruang)) {
@@ -682,7 +731,9 @@ class KrsPlottingService
                 strpos($plot->conflict_message, 'Dosen (') !== false ||
                 strpos($plot->conflict_message, 'melebihi beban') !== false ||
                 strpos($plot->conflict_message, 'Ruangan penuh') !== false ||
-                strpos($plot->conflict_message, 'Waktu/Ruang tidak tersedia') !== false
+                strpos($plot->conflict_message, 'Waktu/Ruang tidak tersedia') !== false ||
+                strpos($plot->conflict_message, 'kosong berurutan') !== false ||
+                strpos($plot->conflict_message, 'pendidik utama yang tersedia') !== false
             );
 
             if ($isCompletelyEmpty && !$hasSpecificError) {
@@ -707,11 +758,15 @@ class KrsPlottingService
                 }
             }
             if (!$plot->krs_ruang_id && $plot->krs_dosen_id) {
-                $isConflict = true;
                 if ($plot->conflict_message && strpos($plot->conflict_message, 'semua Ruangan penuh') !== false) {
+                    $isConflict = true;
                     $msgs[] = $plot->conflict_message;
                 } else {
-                    $msgs[] = "Ruang belum diatur.";
+                    // Allow missing room if day and time are successfully scheduled (supports "Plot Tanpa Ruangan" rule)
+                    if (!$plot->hari || empty($plot->krs_waktu_ids)) {
+                        $isConflict = true;
+                        $msgs[] = "Ruang belum diatur.";
+                    }
                 }
             }
             if (!$plot->hari || empty($plot->krs_waktu_ids)) {

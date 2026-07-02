@@ -152,6 +152,24 @@ export default function TabRuangan({
                                         };
 
                                         waktus.forEach((w: any) => {
+                                            if (w.is_istirahat) {
+                                                pushRow();
+                                                currentPlotId = null;
+                                                currentWaktuStart = null;
+                                                currentWaktuEnd = null;
+                                                isKosong = false;
+
+                                                rows.push(
+                                                    <tr key={`istirahat-${w.id}`} className="border-border border-b border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900/50">
+                                                        <td className="p-3 font-medium align-top">{rows.length === 0 ? hari : ''}</td>
+                                                        <td colSpan={3} className="p-3 text-center text-red-600 dark:text-red-400 font-bold tracking-widest text-sm uppercase">
+                                                            ISTIRAHAT ({w.jam_mulai.slice(0, 5)} - {w.jam_selesai.slice(0, 5)})
+                                                        </td>
+                                                    </tr>
+                                                );
+                                                return;
+                                            }
+
                                             const plotForWaktu = dayPlots.find((p: Plot) => p.krs_waktu_ids?.includes(w.id));
                                             
                                             if (plotForWaktu) {

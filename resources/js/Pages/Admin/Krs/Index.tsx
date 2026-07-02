@@ -1,5 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, useForm } from '@inertiajs/react';
+import * as XLSX from 'xlsx';
 import {
     AlertCircle,
     ArrowRight,
@@ -249,9 +250,9 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         if (filterStatus === 'Konflik') {
             sortableItems = sortableItems.filter((p: Plot) => p.is_conflict);
         } else if (filterStatus === 'Aman') {
-            sortableItems = sortableItems.filter((p: Plot) => !p.is_conflict && p.krs_dosen_id && p.krs_ruang_id);
+            sortableItems = sortableItems.filter((p: Plot) => !p.is_conflict && p.krs_dosen_id && p.krs_waktu_ids && p.krs_waktu_ids.length > 0);
         } else if (filterStatus === 'Belum Diplot') {
-            sortableItems = sortableItems.filter((p: Plot) => !p.is_conflict && !p.krs_dosen_id && !p.krs_ruang_id);
+            sortableItems = sortableItems.filter((p: Plot) => !p.is_conflict && (!p.krs_waktu_ids || p.krs_waktu_ids.length === 0));
         }
 
         if (sortConfig !== null) {
@@ -430,7 +431,176 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     };
 
     const handleExport = () => {
-        window.location.href = route('admin.krs.export', { period_id: activePeriodId });
+        if (!plots || plots.length === 0) {
+            return alert('Tidak ada data jadwal untuk diexport.');
+        }
+
+        const wb = XLSX.utils.book_new();
+        const date = new Date().toISOString().split('T')[0];
+
+        if (activeTab === 'mapel') {
+            const wsData = [
+                ["Kode MP", "Nama MP", "Kelas", "SKS", "Jenis Ruang", "Pendidik", "Ruang (Kapasitas)", "Hari", "Jam", "Status", "Pesan Konflik"]
+            ];
+            sortedPlots.forEach(p => {
+                const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
+                const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
+                const jadwal = p.hari && p.waktu_details && p.waktu_details.length ? `${p.hari}, ${p.waktu_details[0].jam_mulai} - ${p.waktu_details[p.waktu_details.length - 1].jam_selesai}` : 'Belum diplot';
+                wsData.push([
+                    p.matakuliah?.kode_mk || '-',
+                    p.matakuliah?.nama_mk || '-',
+                    p.matakuliah?.kelas || '-',
+                    p.matakuliah?.sks || '-',
+                    p.matakuliah?.jenis_ruang || '-',
+                    pendidik,
+                    ruang,
+                    p.hari || '-',
+                    jadwal,
+                    p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
+                    p.conflict_message || '-'
+                ]);
+            });
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Mapel");
+            XLSX.writeFile(wb, `Jadwal_Berdasarkan_Mapel_${date}.xlsx`);
+        } 
+        else if (activeTab === 'dosen') {
+            const wsData = [
+                ["Nama Pendidik", "Total SKS", "Kode MP", "Mata Kuliah", "Kelas", "SKS", "Jenis Ruang", "Jadwal", "Ruang", "Status"]
+            ];
+            const groups = new Map();
+            dosens.forEach(d => {
+                const name = d.nama_dosen?.trim();
+                if (name) groups.set(name, { nama_dosen: name, totalSks: 0, plots: [] });
+            });
+            groups.set('Belum Ditentukan', { nama_dosen: 'Belum Ditentukan', totalSks: 0, plots: [] });
+            
+            plots.forEach(p => {
+                let assigned = false;
+                const assign = (dosenObj: any) => {
+                    const name = dosenObj ? dosenObj.nama_dosen?.trim() : 'Belum Ditentukan';
+                    if (!groups.has(name)) groups.set(name, { nama_dosen: name, totalSks: 0, plots: [] });
+                    groups.get(name).plots.push(p);
+                    const divisor = p.krs_dosen_kedua_id ? 2 : 1;
+                    groups.get(name).totalSks += (p.matakuliah?.sks / divisor || 0);
+                    assigned = true;
+                };
+                
+                if (p.dosen || p.krs_dosen_id) assign(p.dosen || dosens.find((d: any) => d.id === p.krs_dosen_id));
+                if (p.dosenKedua || p.krs_dosen_kedua_id) assign(p.dosenKedua || dosens.find((d: any) => d.id === p.krs_dosen_kedua_id));
+                if (!assigned) assign(null);
+            });
+
+            groups.forEach((g) => {
+                if (g.plots.length === 0) {
+                    wsData.push([g.nama_dosen, 0, "-", "Belum ada kelas", "-", "-", "-", "-", "-", "-"]);
+                } else {
+                    g.plots.forEach((p: any) => {
+                        const jadwal = p.hari && p.waktu_details && p.waktu_details.length ? `${p.hari}, ${p.waktu_details[0].jam_mulai} - ${p.waktu_details[p.waktu_details.length - 1].jam_selesai}` : 'Belum diplot';
+                        const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
+                        wsData.push([
+                            g.nama_dosen,
+                            g.totalSks,
+                            p.matakuliah?.kode_mk || '-',
+                            p.matakuliah?.nama_mk || '-',
+                            p.matakuliah?.kelas || '-',
+                            p.matakuliah?.sks || '-',
+                            p.matakuliah?.jenis_ruang || '-',
+                            jadwal,
+                            ruang,
+                            p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot')
+                        ]);
+                    });
+                }
+            });
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Pendidik");
+            XLSX.writeFile(wb, `Jadwal_Berdasarkan_Pendidik_${date}.xlsx`);
+        }
+        else if (activeTab === 'ruang') {
+            const wsData = [
+                ["Nama Ruang", "Kapasitas", "Hari", "Jam", "Kode MP", "Mata Kuliah", "Kelas", "Pendidik"]
+            ];
+            const rGroups = new Map();
+            ruangs.forEach((r: any) => {
+                const name = r.nama_ruang?.trim();
+                if (name) rGroups.set(name, { ruang: r, plots: [] });
+            });
+            rGroups.set('Belum Ditentukan', { ruang: { nama_ruang: 'Belum Ditentukan', kapasitas: '-' }, plots: [] });
+            
+            plots.forEach(p => {
+                const name = p.ruang ? p.ruang.nama_ruang?.trim() : 'Belum Ditentukan';
+                if (!rGroups.has(name)) rGroups.set(name, { ruang: { nama_ruang: name, kapasitas: '-' }, plots: [] });
+                rGroups.get(name).plots.push(p);
+            });
+
+            rGroups.forEach((g) => {
+                if (g.plots.length === 0) {
+                    wsData.push([g.ruang.nama_ruang, g.ruang.kapasitas || '-', "-", "-", "-", "Belum ada kelas", "-", "-"]);
+                } else {
+                    const sorted = [...g.plots].sort((a,b) => (a.hari||'').localeCompare(b.hari||''));
+                    sorted.forEach(p => {
+                        const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
+                        const jadwal = p.hari && p.waktu_details && p.waktu_details.length ? `${p.waktu_details[0].jam_mulai} - ${p.waktu_details[p.waktu_details.length - 1].jam_selesai}` : '-';
+                        wsData.push([
+                            g.ruang.nama_ruang,
+                            g.ruang.kapasitas || '-',
+                            p.hari || '-',
+                            jadwal,
+                            p.matakuliah?.kode_mk || '-',
+                            p.matakuliah?.nama_mk || '-',
+                            p.matakuliah?.kelas || '-',
+                            pendidik
+                        ]);
+                    });
+                }
+            });
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Ruangan");
+            XLSX.writeFile(wb, `Jadwal_Berdasarkan_Ruangan_${date}.xlsx`);
+        }
+        else if (activeTab === 'hari') {
+            const wsData = [
+                ["Hari", "Waktu", "Ruang", "Kode MP", "Mata Kuliah", "Kelas", "Pendidik"]
+            ];
+            const hGroups = new Map();
+            const hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+            hariList.forEach(h => hGroups.set(h, []));
+            hGroups.set('Belum Diplot', []);
+
+            plots.forEach(p => {
+                const h = p.hari || 'Belum Diplot';
+                if (!hGroups.has(h)) hGroups.set(h, []);
+                hGroups.get(h).push(p);
+            });
+
+            hGroups.forEach((plotsArr, hari) => {
+                if (plotsArr.length === 0) return;
+                const sorted = [...plotsArr].sort((a: any, b: any) => {
+                    if (!a.waktu_details?.length) return 1;
+                    if (!b.waktu_details?.length) return -1;
+                    return a.waktu_details[0].jam_mulai.localeCompare(b.waktu_details[0].jam_mulai);
+                });
+                sorted.forEach((p: any) => {
+                    const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
+                    const ruang = p.ruang ? p.ruang.nama_ruang : '-';
+                    const jadwal = p.waktu_details && p.waktu_details.length ? `${p.waktu_details[0].jam_mulai} - ${p.waktu_details[p.waktu_details.length - 1].jam_selesai}` : '-';
+                    wsData.push([
+                        hari,
+                        jadwal,
+                        ruang,
+                        p.matakuliah?.kode_mk || '-',
+                        p.matakuliah?.nama_mk || '-',
+                        p.matakuliah?.kelas || '-',
+                        pendidik
+                    ]);
+                });
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Hari");
+            XLSX.writeFile(wb, `Jadwal_Berdasarkan_Hari_${date}.xlsx`);
+        }
     };
 
     const submitEdit = (e: React.FormEvent) => {
@@ -879,10 +1049,15 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                             </div>
                                         )}
 
-                                        {readiness_data.status_ruang === 'KURANG' && (
+                                        {readiness_data.status_ruang === 'KURANG' && !ruleTanpaRuangan && (
                                             <p className="mt-3 text-xs text-red-600 dark:text-red-400">
                                                 <strong>Peringatan:</strong> Ruangan fisik (total atau tipe tertentu) tidak mencukupi untuk menampung
                                                 seluruh SKS. Plotting otomatis akan kesulitan atau menyisakan banyak kelas tak terplot.
+                                            </p>
+                                        )}
+                                        {readiness_data.status_ruang === 'KURANG' && ruleTanpaRuangan && (
+                                            <p className="mt-3 text-xs text-indigo-600 dark:text-indigo-400">
+                                                <strong>Info:</strong> Ruangan fisik kurang, namun mode <strong>Tanpa Ruangan</strong> aktif sehingga sistem akan membuatkan ruang/kelas virtual secara otomatis.
                                             </p>
                                         )}
                                         {readiness_data.status_ruang === 'OK' && (
@@ -1211,45 +1386,53 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                         <div className="rounded-lg bg-white p-3 shadow-sm dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800">
                                             <h4 className="font-semibold mb-2 text-sm text-emerald-800 dark:text-emerald-300 flex items-center gap-1"><MapPin className="w-4 h-4"/> Ruang Fisik Seminggu</h4>
                                             
-                                            <div className="mb-2 text-[11px] flex flex-col gap-1 bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
-                                                <div className="flex justify-between font-semibold border-b pb-1 mb-1">
-                                                    <span className="text-blue-700 dark:text-blue-400">Ruang Besar</span>
+                                            {ruleTanpaRuangan ? (
+                                                <div className="flex h-32 items-center justify-center rounded border border-dashed border-emerald-300 bg-emerald-50/50 p-4 text-center text-xs text-emerald-700 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-400">
+                                                    Mode Tanpa Ruangan aktif. Kapasitas ruang bersifat dinamis dan tidak dibatasi (menggunakan kelas virtual).
                                                 </div>
-                                                <div className="flex justify-between">
-                                                    <span>Kebutuhan Mapel:</span>
-                                                    <span className="font-bold">{butuhBesarTotal} SKS</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>Kapasitas Seminggu:</span>
-                                                    <span className="font-bold text-emerald-600">{capBesarOverall} Slot</span>
-                                                </div>
-                                                <div className="flex justify-between text-[10px] italic mt-1 text-gray-500">
-                                                    <span>Sisa Nganggur:</span>
-                                                    <span className={capBesarOverall > 0 && (capBesarOverall - butuhBesarTotal) < (capBesarOverall * 0.15) ? 'text-red-600 font-bold' : ''}>
-                                                        {capBesarOverall - butuhBesarTotal} Slot {capBesarOverall > 0 && (capBesarOverall - butuhBesarTotal) < (capBesarOverall * 0.15) && '(Sangat Mepet, Rawan Fragmentasi)'}
-                                                    </span>
-                                                </div>
-                                            </div>
+                                            ) : (
+                                                <>
+                                                    <div className="mb-2 text-[11px] flex flex-col gap-1 bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                                                        <div className="flex justify-between font-semibold border-b pb-1 mb-1">
+                                                            <span className="text-blue-700 dark:text-blue-400">Ruang Besar</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Kebutuhan Mapel:</span>
+                                                            <span className="font-bold">{butuhBesarTotal} SKS</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Kapasitas Seminggu:</span>
+                                                            <span className="font-bold text-emerald-600">{capBesarOverall} Slot</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] italic mt-1 text-gray-500">
+                                                            <span>Sisa Nganggur:</span>
+                                                            <span className={capBesarOverall > 0 && (capBesarOverall - butuhBesarTotal) < (capBesarOverall * 0.15) ? 'text-red-600 font-bold' : ''}>
+                                                                {capBesarOverall - butuhBesarTotal} Slot {capBesarOverall > 0 && (capBesarOverall - butuhBesarTotal) < (capBesarOverall * 0.15) && '(Sangat Mepet, Rawan Fragmentasi)'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-                                            <div className="text-[11px] flex flex-col gap-1 bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
-                                                <div className="flex justify-between font-semibold border-b pb-1 mb-1">
-                                                    <span className="text-orange-700 dark:text-orange-400">Ruang Kecil</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>Kebutuhan Mapel:</span>
-                                                    <span className="font-bold">{butuhKecilTotal} SKS</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>Kapasitas Seminggu:</span>
-                                                    <span className="font-bold text-emerald-600">{capKecilOverall} Slot</span>
-                                                </div>
-                                                <div className="flex justify-between text-[10px] italic mt-1 text-gray-500">
-                                                    <span>Sisa Nganggur:</span>
-                                                    <span className={capKecilOverall > 0 && (capKecilOverall - butuhKecilTotal) < (capKecilOverall * 0.15) ? 'text-red-600 font-bold' : ''}>
-                                                        {capKecilOverall - butuhKecilTotal} Slot {capKecilOverall > 0 && (capKecilOverall - butuhKecilTotal) < (capKecilOverall * 0.15) && '(Sangat Mepet, Rawan Fragmentasi)'}
-                                                    </span>
-                                                </div>
-                                            </div>
+                                                    <div className="text-[11px] flex flex-col gap-1 bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                                                        <div className="flex justify-between font-semibold border-b pb-1 mb-1">
+                                                            <span className="text-orange-700 dark:text-orange-400">Ruang Kecil</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Kebutuhan Mapel:</span>
+                                                            <span className="font-bold">{butuhKecilTotal} SKS</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Kapasitas Seminggu:</span>
+                                                            <span className="font-bold text-emerald-600">{capKecilOverall} Slot</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] italic mt-1 text-gray-500">
+                                                            <span>Sisa Nganggur:</span>
+                                                            <span className={capKecilOverall > 0 && (capKecilOverall - butuhKecilTotal) < (capKecilOverall * 0.15) ? 'text-red-600 font-bold' : ''}>
+                                                                {capKecilOverall - butuhKecilTotal} Slot {capKecilOverall > 0 && (capKecilOverall - butuhKecilTotal) < (capKecilOverall * 0.15) && '(Sangat Mepet, Rawan Fragmentasi)'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
 
                                         <div className={`rounded-lg bg-white p-3 shadow-sm border ${isAman ? 'border-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/50' : 'border-red-200 dark:border-red-900/50 dark:bg-red-950/30'}`}>
@@ -1365,7 +1548,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 onClick={handleExport}
                                 className="ml-auto flex items-center gap-2 rounded bg-slate-800 px-4 py-2 text-white shadow hover:bg-slate-900"
                             >
-                                <Download className="h-4 w-4" /> Export CSV
+                                <Download className="h-4 w-4" /> Export Excel
                             </button>
                         </div>
 
@@ -1978,15 +2161,10 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                             <div className="mt-8 mb-4 flex items-center justify-between">
                                                 <h4 className="font-bold">Daftar Waktu Tersimpan ({waktus.length})</h4>
                                             </div>
-                                            <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-400">
-                                                <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+                                            <div className="mb-4 flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800 dark:border-indigo-800/50 dark:bg-indigo-900/20 dark:text-indigo-400">
+                                                <Info className="mt-0.5 h-5 w-5 flex-shrink-0" />
                                                 <div>
-                                                    <strong>Peringatan Penting:</strong> Daftar di bawah ini <u>hanya boleh</u> berisi jam pelajaran
-                                                    (JP) efektif.
-                                                    <strong> JANGAN memasukkan/menambah baris khusus untuk Jam Istirahat.</strong>
-                                                    <br />
-                                                    (Jam Istirahat cukup diatur pada form generator di atas, dan sistem akan otomatis melompatinya
-                                                    tanpa perlu dibuatkan slot).
+                                                    Jam istirahat otomatis ditandai dengan warna merah dan akan diabaikan oleh sistem plotting.
                                                 </div>
                                             </div>
                                             <table className="bg-background border-border w-full border-collapse overflow-hidden rounded-lg border text-left text-sm">
@@ -1994,18 +2172,22 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     <tr>
                                                         <th className="p-3">Jam Mulai</th>
                                                         <th className="p-3">Jam Selesai</th>
+                                                        <th className="p-3">Keterangan</th>
                                                         <th className="p-3">Aksi</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {waktus?.map((w: any) => (
-                                                        <tr key={w.id} className="border-border hover:bg-muted/50 border-b last:border-0">
-                                                            <td className="p-3">{w.jam_mulai}</td>
-                                                            <td className="p-3">{w.jam_selesai}</td>
+                                                        <tr key={w.id} className={`border-b last:border-0 ${w.is_istirahat ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50' : 'border-border hover:bg-muted/50'}`}>
+                                                            <td className="p-3 font-semibold">{w.jam_mulai}</td>
+                                                            <td className="p-3 font-semibold">{w.jam_selesai}</td>
+                                                            <td className="p-3">
+                                                                {w.is_istirahat ? <span className="font-bold flex items-center gap-1"><AlertCircle className="w-4 h-4"/> ISTIRAHAT</span> : 'Jam Pelajaran'}
+                                                            </td>
                                                             <td className="p-3">
                                                                 <button
                                                                     onClick={() => handleDeleteMasterData('waktu', w.id)}
-                                                                    className="rounded bg-red-50 p-1.5 text-red-500 hover:bg-red-100 hover:text-red-700"
+                                                                    className="rounded bg-red-100 p-1.5 text-red-600 hover:bg-red-200 hover:text-red-800 dark:bg-red-900/50 dark:text-red-400"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </button>
@@ -2014,7 +2196,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     ))}
                                                     {(!waktus || waktus.length === 0) && (
                                                         <tr>
-                                                            <td colSpan={3} className="text-muted-foreground p-4 text-center">
+                                                            <td colSpan={4} className="text-muted-foreground p-4 text-center">
                                                                 Belum ada waktu di-generate.
                                                             </td>
                                                         </tr>

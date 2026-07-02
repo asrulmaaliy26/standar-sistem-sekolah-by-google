@@ -330,6 +330,24 @@ export default function TabHari({ plots, waktus = [], ruangs = [], setEditPlot, 
                                             };
 
                                             waktus.forEach((w: any) => {
+                                                if (w.is_istirahat) {
+                                                    pushRow();
+                                                    currentPlotId = null;
+                                                    currentWaktuStart = null;
+                                                    currentWaktuEnd = null;
+                                                    isKosong = false;
+
+                                                    renderedRows.push(
+                                                        <tr key={`istirahat-${w.id}`} className="border-border border-b border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900/50">
+                                                            <td colSpan={5} className="p-3 text-center text-red-600 dark:text-red-400 font-bold tracking-widest text-sm uppercase">
+                                                                ISTIRAHAT ({w.jam_mulai.slice(0, 5)} - {w.jam_selesai.slice(0, 5)})
+                                                            </td>
+                                                            <td colSpan={2} className="p-3"></td>
+                                                        </tr>
+                                                    );
+                                                    return;
+                                                }
+
                                                 const plotForWaktu = roomPlots.find((p: Plot) => p.krs_waktu_ids?.includes(w.id));
 
                                                 if (plotForWaktu) {

@@ -14,6 +14,7 @@ class KrsWaktu extends Model
         'jam_mulai',
         'jam_selesai',
         'durasi_menit',
+        'is_istirahat',
     ];
 
     public function period()
