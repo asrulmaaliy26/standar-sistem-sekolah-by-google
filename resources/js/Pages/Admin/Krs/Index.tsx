@@ -1771,7 +1771,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                             if (p.hari !== editData.hari) continue;
                                                             if (!p.krs_waktu_ids || !p.krs_waktu_ids.includes(matchedWaktu.id)) continue;
 
-                                                            if (editData.krs_dosen_id && p.krs_dosen_id == editData.krs_dosen_id) takenDosen = true;
+                                                            if (editData.krs_dosen_id && (p.krs_dosen_id == editData.krs_dosen_id || p.krs_dosen_kedua_id == editData.krs_dosen_id)) takenDosen = true;
+                                                            if (editData.krs_dosen_kedua_id && (p.krs_dosen_id == editData.krs_dosen_kedua_id || p.krs_dosen_kedua_id == editData.krs_dosen_kedua_id)) takenDosen = true;
                                                             if (editData.krs_ruang_id && p.krs_ruang_id == editData.krs_ruang_id) takenRuang = true;
                                                         }
                                                     }
@@ -1830,6 +1831,15 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                 if (isDisabled) return;
                                                                 let newTimes = [...editTimes];
                                                                 const isSelected = newTimes.includes(timeStr);
+
+                                                                if (!isSelected && (takenDosen || takenRuang)) {
+                                                                    const msg = [];
+                                                                    if (takenDosen) msg.push('Pendidik');
+                                                                    if (takenRuang) msg.push('Ruang');
+                                                                    if (!confirm(`${msg.join(' dan ')} sudah terpakai pada jam ini.\n\nYakin ingin tetap memilih (menimbulkan bentrok)?`)) {
+                                                                        return;
+                                                                    }
+                                                                }
 
                                                                 if (!isSelected) {
                                                                     if (editPlot?.matakuliah?.sks) {

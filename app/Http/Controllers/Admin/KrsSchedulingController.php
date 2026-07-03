@@ -416,9 +416,9 @@ class KrsSchedulingController extends Controller
         $plot = KrsJadwalPlot::findOrFail($id);
 
         $plot->update([
-            'krs_dosen_id'       => $request->krs_dosen_id,
-            'krs_dosen_kedua_id' => $request->krs_dosen_kedua_id,
-            'krs_ruang_id'       => $request->krs_ruang_id,
+            'krs_dosen_id'       => $request->krs_dosen_id ?: null,
+            'krs_dosen_kedua_id' => $request->krs_dosen_kedua_id ?: null,
+            'krs_ruang_id'       => $request->krs_ruang_id ?: null,
             'hari'               => $request->hari,
             'krs_waktu_ids'    => $request->krs_waktu_ids,
             // Sementara false; validateConflicts() akan menghitung nilai sesungguhnya
