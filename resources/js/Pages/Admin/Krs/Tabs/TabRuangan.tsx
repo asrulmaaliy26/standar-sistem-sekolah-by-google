@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Edit, Plus, Lock } from 'lucide-react';
+import { Edit, Plus, Lock, Trash2 } from 'lucide-react';
+import { router } from '@inertiajs/react';
 
 interface Plot {
     id: number;
@@ -42,167 +43,142 @@ export default function TabRuangan({
         <>
         <div className="space-y-6">
             {ruangs?.map((ruang: any) => {
+                const plotsInRuang = plots.filter(p => p.krs_ruang_id === ruang.id);
+                
                 return (
-                    <div key={ruang.id} className="bg-card text-card-foreground border-border overflow-hidden rounded-xl border shadow-sm">
-                        <div className="bg-muted/30 border-border flex flex-col items-start justify-between gap-2 border-b px-4 py-3 md:flex-row md:items-center">
-                            <h3 className="text-lg font-bold">{ruang.nama_ruang} <span className="text-sm font-normal text-muted-foreground">(Kapasitas: {ruang.kapasitas})</span></h3>
+                    <div key={ruang.id} className="overflow-x-auto border rounded-xl shadow-sm bg-white dark:bg-slate-900 border-border">
+                        <div className="bg-slate-100 dark:bg-slate-800 p-3 border-b border-border text-center font-bold sticky left-0 z-20">
+                            {ruang.nama_ruang} <span className="text-sm font-normal text-muted-foreground">(Kapasitas: {ruang.kapasitas || '-'})</span>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full border-collapse text-left text-sm">
-                                <thead className="bg-muted/50 text-muted-foreground border-border border-b">
-                                    <tr>
-                                        <th className="p-3 w-32">Hari</th>
-                                        <th className="p-3 w-48">Waktu</th>
-                                        <th className="p-3">Status</th>
-                                        <th className="p-3 w-16 text-center">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {hariList.map(hari => {
-                                        const dayPlots = plots.filter((p: Plot) => p.krs_ruang_id === ruang.id && p.hari === hari && !p.is_conflict);
-                                        
-                                        let rows: React.ReactNode[] = [];
-                                        let currentPlotId: number | null = null;
-                                        let currentWaktuStart: any = null;
-                                        let currentWaktuEnd: any = null;
-                                        let isKosong = false;
-                                        
-                                        const pushRow = () => {
-                                            if (currentWaktuStart) {
-                                                const capturedStart = currentWaktuStart;
-                                                const capturedEnd = currentWaktuEnd;
-                                                const timeStr = `${capturedStart.jam_mulai.slice(0, 5)} - ${capturedEnd.jam_selesai.slice(0, 5)}`;
-                                                if (isKosong) {
-                                                    rows.push(
-                                                        <tr key={`kosong-${capturedStart.id}`} className="border-border border-b border-dashed bg-emerald-50/30 dark:bg-emerald-950/10">
-                                                            <td className="p-3 font-medium align-top">{rows.length === 0 ? hari : ''}</td>
-                                                            <td className="p-3 align-top whitespace-nowrap text-muted-foreground">{timeStr}</td>
-                                                            <td className="p-3 font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                                                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> KOSONG
-                                                            </td>
-                                                            <td className="p-3 align-top text-center">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setSelectPlotModal({
-                                                                            ruangId: ruang.id,
-                                                                            hari: hari,
-                                                                            waktu: capturedStart
-                                                                        });
-                                                                    }}
-                                                                    className="rounded bg-emerald-50 p-1.5 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 relative z-10"
-                                                                    title="Isi Slot Kosong"
-                                                                >
+                        <table className="w-full text-sm border-collapse text-center">
+                            <thead>
+                                <tr>
+                                    <th className="border border-slate-300 dark:border-slate-700 p-2 bg-slate-200 dark:bg-slate-800 sticky top-0 left-0 z-10 font-bold whitespace-nowrap min-w-[50px]">Jam Ke</th>
+                                    <th className="border border-slate-300 dark:border-slate-700 p-2 bg-slate-200 dark:bg-slate-800 sticky top-0 left-[50px] z-10 font-bold whitespace-nowrap min-w-[100px]">Waktu</th>
+                                    {hariList.map(hari => (
+                                        <th key={hari} className="border border-slate-300 dark:border-slate-700 p-2 bg-slate-200 dark:bg-slate-800 font-bold min-w-[150px]">
+                                            {hari}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {waktus.map((w, index) => {
+                                    if (w.is_istirahat) {
+                                        return (
+                                            <tr key={`istirahat-${w.id}`} className="hover:bg-red-50 dark:hover:bg-red-900/20">
+                                                <td className="border border-slate-300 dark:border-slate-700 p-2 font-medium bg-red-50 dark:bg-red-950/20 sticky left-0 z-10 text-red-600 dark:text-red-400">{index + 1}</td>
+                                                <td className="border border-slate-300 dark:border-slate-700 p-2 font-medium bg-red-50 dark:bg-red-950/20 sticky left-[50px] z-10 text-red-600 dark:text-red-400">{w.jam_mulai.slice(0, 5)} - {w.jam_selesai.slice(0, 5)}</td>
+                                                <td colSpan={hariList.length} className="border border-slate-300 dark:border-slate-700 p-2 text-center text-red-600 dark:text-red-400 font-bold tracking-widest text-sm uppercase bg-red-50 dark:bg-red-950/20">
+                                                    ISTIRAHAT
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    return (
+                                        <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                            <td className="border border-slate-300 dark:border-slate-700 p-2 font-medium bg-slate-100 dark:bg-slate-800/80 sticky left-0 z-10">{index + 1}</td>
+                                            <td className="border border-slate-300 dark:border-slate-700 p-2 font-medium bg-slate-100 dark:bg-slate-800/80 sticky left-[50px] z-10">{w.jam_mulai.slice(0, 5)} - {w.jam_selesai.slice(0, 5)}</td>
+                                            {hariList.map(hari => {
+                                                // Find ALL plots for this room, on this day, at this time
+                                                const cellPlots = plotsInRuang.filter((p: Plot) => p.hari === hari && p.krs_waktu_ids?.includes(w.id));
+
+                                                return (
+                                                    <td
+                                                        key={hari}
+                                                        className={`border border-slate-300 dark:border-slate-700 p-1.5 align-middle transition-colors ${cellPlots.length === 0 ? 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30 cursor-pointer group' : ''} h-full`}
+                                                        onClick={() => {
+                                                            if (cellPlots.length === 0) {
+                                                                setSelectPlotModal({
+                                                                    ruangId: ruang.id,
+                                                                    hari: hari,
+                                                                    waktu: w
+                                                                });
+                                                            }
+                                                        }}
+                                                    >
+                                                        {cellPlots.length === 0 ? (
+                                                            <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity h-full min-h-[30px]">
+                                                                <div className="rounded-full bg-emerald-100 p-1 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
                                                                     <Plus className="h-4 w-4" />
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                } else {
-                                                    const plot = dayPlots.find((p: Plot) => p.id === currentPlotId);
-                                                    if (plot) {
-                                                        let dosenName = plot.dosen ? plot.dosen.nama_dosen : 'Belum Ditentukan';
-                                                        if (plot.dosen_kedua) {
-                                                            dosenName += ` & ${plot.dosen_kedua.nama_dosen}`;
-                                                        }
-                                                        rows.push(
-                                                            <tr key={`isi-${plot.id}-${currentWaktuStart.id}`} className="border-border border-b">
-                                                                <td className="p-3 font-medium align-top">{rows.length === 0 ? hari : ''}</td>
-                                                                <td className="p-3 align-top whitespace-nowrap text-muted-foreground">{timeStr}</td>
-                                                                <td className="p-3">
-                                                                    <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                                                                        {plot.matakuliah.nama_mk} - {plot.matakuliah.kelas} ({plot.matakuliah.sks} SKS)
-                                                                        {plot.is_locked && <Lock className="h-3 w-3 text-amber-600" />}
-                                                                    </div>
-                                                                    <div className="text-xs text-muted-foreground">{dosenName}</div>
-                                                                </td>
-                                                                <td className="p-3 align-top text-center">
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setEditPlot(plot);
-                                                                            setEditData({
-                                                                                krs_dosen_id: plot.krs_dosen_id?.toString() || '',
-                                                                                krs_dosen_kedua_id: plot.krs_dosen_kedua_id?.toString() || '',
-                                                                                krs_ruang_id: plot.krs_ruang_id?.toString() || '',
-                                                                                hari: plot.hari || 'Senin',
-                                                                                krs_waktu_ids: plot.krs_waktu_ids || [],
-                                                                                is_locked: plot.is_locked || false,
-                                                                            });
-                                                                            if (plot.waktu_details && plot.waktu_details.length > 0) {
-                                                                                setEditTimes(
-                                                                                    plot.waktu_details.map((w: any) => `${w.jam_mulai} - ${w.jam_selesai}`),
-                                                                                );
-                                                                            } else {
-                                                                                setEditTimes([]);
-                                                                            }
-                                                                        }}
-                                                                        className="rounded bg-blue-50 p-1.5 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-                                                                        title="Edit Plot"
-                                                                    >
-                                                                        <Edit className="h-4 w-4" />
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                        };
-
-                                        waktus.forEach((w: any) => {
-                                            if (w.is_istirahat) {
-                                                pushRow();
-                                                currentPlotId = null;
-                                                currentWaktuStart = null;
-                                                currentWaktuEnd = null;
-                                                isKosong = false;
-
-                                                rows.push(
-                                                    <tr key={`istirahat-${w.id}`} className="border-border border-b border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900/50">
-                                                        <td className="p-3 font-medium align-top">{rows.length === 0 ? hari : ''}</td>
-                                                        <td colSpan={3} className="p-3 text-center text-red-600 dark:text-red-400 font-bold tracking-widest text-sm uppercase">
-                                                            ISTIRAHAT ({w.jam_mulai.slice(0, 5)} - {w.jam_selesai.slice(0, 5)})
-                                                        </td>
-                                                    </tr>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-0.5 w-full h-full">
+                                                                {cellPlots.map((plot, pIndex) => {
+                                                                    let dosenName = plot.dosen?.nama_dosen || 'No Dosen';
+                                                                    if (plot.dosen_kedua) dosenName += ` & ${plot.dosen_kedua.nama_dosen}`;
+                                                                    
+                                                                    let bgColorClass = 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40';
+                                                                    let conflictClass = 'border-transparent';
+                                                                    
+                                                                    if (plot.is_conflict) {
+                                                                        conflictClass = 'text-red-600 font-bold border-red-500 border-2 dark:text-red-400';
+                                                                        bgColorClass = 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40';
+                                                                    }
+                                                    
+                                                                    return (
+                                                                        <div 
+                                                                            key={plot.id || pIndex}
+                                                                            className={`flex flex-col items-center justify-center text-[10px] leading-tight relative w-full px-1 py-0.5 cursor-pointer rounded border ${bgColorClass} ${conflictClass} group`}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setEditPlot(plot);
+                                                                                setEditData({
+                                                                                    krs_dosen_id: plot.krs_dosen_id?.toString() || '',
+                                                                                    krs_dosen_kedua_id: plot.krs_dosen_kedua_id?.toString() || '',
+                                                                                    krs_ruang_id: plot.krs_ruang_id?.toString() || '',
+                                                                                    krs_waktu_ids: plot.krs_waktu_ids || [],
+                                                                                    hari: plot.hari || hari,
+                                                                                    is_locked: plot.is_locked || false,
+                                                                                });
+                                                                                if (plot.waktu_details && plot.waktu_details.length > 0) {
+                                                                                    setEditTimes(plot.waktu_details.map((wd: any) => `${wd.jam_mulai} - ${wd.jam_selesai}`));
+                                                                                } else {
+                                                                                    setEditTimes([]);
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <div className="font-semibold whitespace-normal text-center flex items-center gap-1 justify-center relative z-0">
+                                                                                {plot.matakuliah.nama_mk} ({plot.matakuliah.kelas})
+                                                                                {plot.is_locked && <Lock className="h-2.5 w-2.5 text-amber-500" title="Terkunci" />}
+                                                                            </div>
+                                                                            <div className="text-[8.5px] text-muted-foreground mt-0 text-center relative z-0">{dosenName}</div>
+                                                                            
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (confirm(`Yakin ingin menghapus / mereset plot kelas ${plot.matakuliah.nama_mk} (${plot.matakuliah.kelas})?`)) {
+                                                                                        // @ts-ignore
+                                                                                        router.put(route('admin.krs.plot.update', plot.id), {
+                                                                                            krs_dosen_id: plot.krs_dosen_id,
+                                                                                            krs_dosen_kedua_id: plot.krs_dosen_kedua_id,
+                                                                                            krs_ruang_id: null,
+                                                                                            hari: null,
+                                                                                            krs_waktu_ids: [],
+                                                                                            is_locked: false,
+                                                                                        }, { preserveScroll: true });
+                                                                                    }
+                                                                                }}
+                                                                                className="absolute top-0.5 left-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 bg-red-100 text-red-600 rounded-full hover:bg-red-200 z-10 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-900"
+                                                                                title="Reset Jadwal"
+                                                                            >
+                                                                                <Trash2 className="h-2.5 w-2.5" />
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </td>
                                                 );
-                                                return;
-                                            }
-
-                                            const plotForWaktu = dayPlots.find((p: Plot) => p.krs_waktu_ids?.includes(w.id));
-                                            
-                                            if (plotForWaktu) {
-                                                if (isKosong || currentPlotId !== plotForWaktu.id) {
-                                                    pushRow();
-                                                    currentPlotId = plotForWaktu.id;
-                                                    currentWaktuStart = w;
-                                                    currentWaktuEnd = w;
-                                                    isKosong = false;
-                                                } else {
-                                                    currentWaktuEnd = w;
-                                                }
-                                            } else {
-                                                if (!isKosong) {
-                                                    pushRow();
-                                                    currentPlotId = null;
-                                                    currentWaktuStart = w;
-                                                    currentWaktuEnd = w;
-                                                    isKosong = true;
-                                                } else {
-                                                    currentWaktuEnd = w;
-                                                }
-                                            }
-                                        });
-                                        pushRow();
-
-                                        if (rows.length === 0) return null;
-                                        
-                                        return <React.Fragment key={hari}>{rows}</React.Fragment>;
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                                            })}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 );
             })}

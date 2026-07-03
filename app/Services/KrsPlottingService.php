@@ -370,6 +370,11 @@ class KrsPlottingService
             ->where('is_istirahat', false)
             ->orderBy('jam_mulai', 'asc')
             ->get();
+            
+        $istirahatWaktus = KrsWaktu::where('krs_period_id', $periodId)
+            ->where('is_istirahat', true)
+            ->get();
+            
         if ($waktus->isEmpty()) {
             throw new \Exception("Data waktu belum diisi/generate.");
         }
@@ -515,6 +520,22 @@ class KrsPlottingService
                                 if ($hari === 'Jumat' && $w->jam_mulai <= '12:19:00' && $w->jam_selesai >= '11:41:00') {
                                     break;
                                 }
+
+                                // Jika ruleTanpaRuangan aktif, pastikan blok JP tidak terpotong istirahat
+                                if ($ruleTanpaRuangan && count($blockIds) > 0) {
+                                    $prevW = $waktus[$j - 1];
+                                    $separatedByIstirahat = false;
+                                    foreach ($istirahatWaktus as $ist) {
+                                        if ($ist->jam_mulai >= $prevW->jam_selesai && $ist->jam_selesai <= $w->jam_mulai) {
+                                            $separatedByIstirahat = true;
+                                            break;
+                                        }
+                                    }
+                                    if ($separatedByIstirahat) {
+                                        break; // Blok terpotong istirahat, hentikan
+                                    }
+                                }
+
                                 // Dosen sibuk di slot ini
                                 if (isset($dosenTimeUsage[$hari][$namaDosen][$w->id])) {
                                     break;
@@ -587,6 +608,21 @@ class KrsPlottingService
                                         $remainAfterFill     = $freeSlotsBeforeFill - $targetSlots;
                                         // Bonus kecil untuk starting slot lebih awal agar compact
                                         $score = $remainAfterFill * 100 + $i;
+                                        
+                                        if ($ruleTanpaRuangan) {
+                                            $hariIndex = array_search($hari, $hariList);
+                                            if ($hariIndex === false) $hariIndex = 0;
+                                            
+                                            // Penalti besar untuk hari yang lebih akhir (memaksa rata kiri ke Senin, Selasa, dst)
+                                            $score += ($hariIndex * 10000);
+                                            
+                                            // Bonus jika dosen SUDAH punya jadwal di hari ini
+                                            // agar mengajar 1 hari penuh dan tidak mlencong
+                                            if ($slotsTakenInDay > 0) {
+                                                $score -= 5000;
+                                            }
+                                        }
+                                        
                                         $candidates[] = [
                                             'hari'   => $hari,
                                             'block'  => $blockIds,

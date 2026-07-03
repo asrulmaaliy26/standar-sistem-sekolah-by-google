@@ -35,7 +35,7 @@ import { createPortal } from 'react-dom';
 import TabMapel from './Tabs/TabMapel';
 import TabPendidik from './Tabs/TabPendidik';
 import TabRuangan from './Tabs/TabRuangan';
-import TabHari from './Tabs/TabHari';
+import TabMainDisplay from './Tabs/TabMainDisplay';
 
 interface Plot {
     id: number;
@@ -94,7 +94,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('Semua');
-    const [activeTab, setActiveTab] = useState<'mapel' | 'dosen' | 'ruang' | 'hari'>('mapel');
+    const [activeTab, setActiveTab] = useState<'main_display' | 'ruang' | 'dosen' | 'mapel'>('main_display');
     const [activeImportTab, setActiveImportTab] = useState<'baru' | 'lama' | 'lengkap'>('baru');
 
     const uniqueDosensList = React.useMemo(() => {
@@ -197,6 +197,23 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         localStorage.setItem('krs_rule_abaikan_jenis', JSON.stringify(ruleAbaikanJenis));
         localStorage.setItem('krs_rule_tanpa_ruangan', JSON.stringify(ruleTanpaRuangan));
     }, [ruleActive, ruleStartSlot, ruleEndSlot, ruleMkCodes, rule2Active, rule2StartSlot, rule2EndSlot, rule2MkCodes, rule3Active, ruleAbaikanJenis, ruleTanpaRuangan]);
+
+    // Auto-select ruang based on class if editing manually and ruleTanpaRuangan is true
+    React.useEffect(() => {
+        if (editPlot && ruleTanpaRuangan) {
+            // Only auto-select if it's not already selected (e.g. from a plot that already has a room)
+            // or if we want to force it to match the class. In Tanpa Ruangan, room MUST match class.
+            const classNameStr = editPlot.matakuliah.kelas.split(',')[0].trim().toLowerCase();
+            const matchingRoom = ruangs?.find((r: any) => 
+                r.nama_ruang.toLowerCase().trim() === classNameStr || 
+                r.kode_ruang.toLowerCase().trim() === classNameStr
+            );
+            
+            if (matchingRoom && (!editData.krs_ruang_id || editData.krs_ruang_id !== matchingRoom.id.toString())) {
+                setEditData('krs_ruang_id', matchingRoom.id.toString());
+            }
+        }
+    }, [editPlot, ruleTanpaRuangan, ruangs]);
 
     const [genJamMulai, setGenJamMulai] = useState('07:00');
     const [genDurasi, setGenDurasi] = useState(40);
@@ -1555,16 +1572,10 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                         {/* Tabs */}
                         <div className="border-border mb-4 flex gap-6 border-b px-2">
                             <button
-                                className={`pb-2 font-semibold transition-colors ${activeTab === 'mapel' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
-                                onClick={() => setActiveTab('mapel')}
+                                className={`pb-2 font-semibold transition-colors ${activeTab === 'main_display' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setActiveTab('main_display')}
                             >
-                                Berdasarkan Kelas/Mapel
-                            </button>
-                            <button
-                                className={`pb-2 font-semibold transition-colors ${activeTab === 'dosen' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
-                                onClick={() => setActiveTab('dosen')}
-                            >
-                                Berdasarkan Pendidik
+                                Main Display
                             </button>
                             <button
                                 className={`pb-2 font-semibold transition-colors ${activeTab === 'ruang' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
@@ -1573,10 +1584,16 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 Berdasarkan Ruangan
                             </button>
                             <button
-                                className={`pb-2 font-semibold transition-colors ${activeTab === 'hari' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
-                                onClick={() => setActiveTab('hari')}
+                                className={`pb-2 font-semibold transition-colors ${activeTab === 'dosen' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setActiveTab('dosen')}
                             >
-                                Berdasarkan Hari
+                                Berdasarkan Pendidik
+                            </button>
+                            <button
+                                className={`pb-2 font-semibold transition-colors ${activeTab === 'mapel' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setActiveTab('mapel')}
+                            >
+                                Berdasarkan Kelas/Mapel
                             </button>
                         </div>
                         {/* Table or Grouped View */}
@@ -1617,11 +1634,11 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             />
                         )}
 
-                        {activeTab === 'hari' && (
-                            <TabHari
+                        {activeTab === 'main_display' && (
+                            <TabMainDisplay
                                 plots={plots}
                                 waktus={waktus}
-                                ruangs={ruangs}
+                                rule3Active={rule3Active}
                                 setEditPlot={setEditPlot}
                                 setEditData={setEditData}
                                 setEditTimes={setEditTimes}
