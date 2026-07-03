@@ -162,31 +162,71 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                                                                             }}
                                                                         >
                                                                             <div className="flex flex-col items-center justify-center text-[10px] leading-tight relative w-full h-full">
-                                                                                {plot.is_conflict && (
-                                                                                    <div title={plot.conflict_message || 'Bentrok'} className="absolute -top-1 -right-1 text-red-500 bg-white dark:bg-slate-900 rounded-full shadow-sm z-10">
-                                                                                        <AlertTriangle className="h-3 w-3 fill-red-100" />
-                                                                                    </div>
-                                                                                )}
+                                                                                {/* Conflict tooltip badge */}
+                                                                                {plot.is_conflict && (() => {
+                                                                                    const msg = plot.conflict_message || '';
+                                                                                    const isRuangConflict = msg.toLowerCase().includes('ruang');
+                                                                                    const isDosenConflict = msg.toLowerCase().includes('dosen') || msg.toLowerCase().includes('pendidik') || msg.toLowerCase().includes('guru');
+                                                                                    const conflictTypeLabel = isRuangConflict ? '🏫 Bentrok Ruang' : isDosenConflict ? '👤 Bentrok Pendidik' : '⚠️ Konflik';
+                                                                                    return (
+                                                                                        <div className="absolute -top-1 -right-1 z-20 group/tooltip">
+                                                                                            <div className="text-red-500 bg-white dark:bg-slate-900 rounded-full shadow cursor-help">
+                                                                                                <AlertTriangle className="h-3.5 w-3.5 fill-red-100" />
+                                                                                            </div>
+                                                                                            <div className="hidden group-hover/tooltip:block absolute right-0 top-4 z-50 w-64 rounded-lg border border-red-300 bg-white dark:bg-slate-900 shadow-xl p-3 text-left text-[10px] pointer-events-none">
+                                                                                                <div className="font-bold text-red-600 dark:text-red-400 text-xs mb-1.5 flex items-center gap-1">
+                                                                                                    <AlertTriangle className="h-3 w-3" />
+                                                                                                    {conflictTypeLabel}
+                                                                                                </div>
+                                                                                                <div className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-normal">
+                                                                                                    {msg || 'Terdapat konflik jadwal pada slot ini.'}
+                                                                                                </div>
+                                                                                                <div className="mt-2 pt-2 border-t border-red-100 dark:border-red-900 text-slate-500 dark:text-slate-400">
+                                                                                                    <span className="font-semibold">Mapel:</span> {plot.matakuliah.nama_mk} ({plot.matakuliah.kelas})<br/>
+                                                                                                    {plot.dosen && <><span className="font-semibold">Pendidik:</span> {plot.dosen.nama_dosen}<br/></>}
+                                                                                                    {plot.ruang && <><span className="font-semibold">Ruang:</span> {plot.ruang.nama_ruang}</>}
+                                                                                                </div>
+                                                                                                <div className="mt-1 text-[9px] text-red-500 dark:text-red-400 italic">
+                                                                                                    Klik kartu untuk edit & pindahkan jadwal ini.
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })()}
+                                                                                {/* Overload tooltip badge */}
                                                                                 {!plot.is_conflict && isOverload && (
-                                                                                    <div title="Overload Beban Dosen (> 6 SKS/Hari)" className="absolute -top-1 -right-1 text-amber-500 bg-white dark:bg-slate-900 rounded-full shadow-sm z-10">
-                                                                                        <AlertTriangle className="h-3 w-3 fill-amber-100" />
+                                                                                    <div className="absolute -top-1 -right-1 z-20 group/tooltip">
+                                                                                        <div className="text-amber-500 bg-white dark:bg-slate-900 rounded-full shadow cursor-help">
+                                                                                            <AlertTriangle className="h-3.5 w-3.5 fill-amber-100" />
+                                                                                        </div>
+                                                                                        <div className="hidden group-hover/tooltip:block absolute right-0 top-4 z-50 w-56 rounded-lg border border-amber-300 bg-white dark:bg-slate-900 shadow-xl p-3 text-left text-[10px] pointer-events-none">
+                                                                                            <div className="font-bold text-amber-700 dark:text-amber-400 text-xs mb-1.5 flex items-center gap-1">
+                                                                                                <AlertTriangle className="h-3 w-3" />
+                                                                                                ⚡ Overload Pendidik
+                                                                                            </div>
+                                                                                            <div className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                                                                                                Beban <span className="font-semibold">{plot.dosen?.nama_dosen}</span> pada hari <span className="font-semibold">{plot.hari}</span> melebihi batas <span className="font-semibold">6 SKS/Hari</span>.
+                                                                                            </div>
+                                                                                            <div className="mt-1 text-[9px] text-amber-600 dark:text-amber-400 italic">
+                                                                                                Pertimbangkan memindahkan ke hari lain.
+                                                                                            </div>
+                                                                                        </div>
                                                                                     </div>
                                                                                 )}
                                                                                 <div className="font-bold whitespace-normal text-center flex items-center gap-1 justify-center relative z-0">
                                                                                     {plot.matakuliah.nama_mk} ({plot.matakuliah.kelas})
-                                                                                    {plot.is_locked && <Lock className="h-3 w-3 text-amber-500" title="Terkunci" />}
+                                                                                    {(plot as any).is_locked && <Lock className="h-3 w-3 text-amber-500" title="Terkunci" />}
                                                                                 </div>
                                                                                 <div className="text-[9px] text-muted-foreground mt-0.5 text-center relative z-0">
                                                                                     {plot.dosen?.nama_dosen && (
                                                                                         <>
                                                                                             {plot.dosen.nama_dosen}
-                                                                                            {plot.dosen_kedua && ` & ${plot.dosen_kedua.nama_dosen}`}
+                                                                                            {(plot as any).dosen_kedua && ` & ${(plot as any).dosen_kedua.nama_dosen}`}
                                                                                             <br/>
                                                                                         </>
                                                                                     )}
                                                                                     {plot.ruang?.nama_ruang || '-'}
                                                                                 </div>
-                                                                                
                                                                                 <button
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
@@ -194,7 +234,7 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                                                                                             // @ts-ignore
                                                                                             router.put(route('admin.krs.plot.update', plot.id), {
                                                                                                 krs_dosen_id: plot.krs_dosen_id,
-                                                                                                krs_dosen_kedua_id: plot.krs_dosen_kedua_id,
+                                                                                                krs_dosen_kedua_id: (plot as any).krs_dosen_kedua_id,
                                                                                                 krs_ruang_id: null,
                                                                                                 hari: null,
                                                                                                 krs_waktu_ids: [],

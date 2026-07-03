@@ -76,6 +76,7 @@ Route::middleware(['auth', 'verified', 'role:admin akademik,admin penjadwalan,su
     Route::post('krs/period/hari-aktif', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateHariAktif'])->name('krs.period.hari_aktif');
     Route::get('krs/template/{type}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'downloadTemplate'])->name('krs.template');
     Route::post('krs/import', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'importCsv'])->name('krs.import');
+    Route::post('krs/import-jadwal', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'importJadwal'])->name('krs.import_jadwal');
     Route::post('krs/waktu/generate', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'generateWaktu'])->name('krs.waktu.generate');
     Route::post('krs/plot', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'plotOtomatis'])->name('krs.plot');
     Route::post('krs/plot-stream', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'plotOtomatisStream'])->name('krs.plot-stream');

@@ -447,6 +447,39 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         }
     };
 
+    const importJadwalInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleImportJadwalClick = () => {
+        if (importJadwalInputRef.current) {
+            importJadwalInputRef.current.click();
+        }
+    };
+
+    const handleImportJadwalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !activePeriodId) return;
+
+        if (!confirm('Anda yakin ingin mengupdate plotting jadwal dari file Excel ini?')) {
+            e.target.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('period_id', activePeriodId.toString());
+
+        router.post(route('admin.krs.import_jadwal'), formData, {
+            forceFormData: true,
+            onSuccess: () => {
+                e.target.value = '';
+            },
+            onError: (errors) => {
+                alert('Gagal mengupload: ' + JSON.stringify(errors));
+                e.target.value = '';
+            }
+        });
+    };
+
     const handleExport = () => {
         if (!plots || plots.length === 0) {
             return alert('Tidak ada data jadwal untuk diexport.');
@@ -455,24 +488,27 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         const wb = XLSX.utils.book_new();
         const date = new Date().toISOString().split('T')[0];
 
-        if (activeTab === 'mapel') {
-            const wsData = [
-                ["Kode MP", "Nama MP", "Kelas", "SKS", "Jenis Ruang", "Pendidik", "Ruang (Kapasitas)", "Hari", "Jam", "Status", "Pesan Konflik"]
-            ];
+        // Standard format: Hari, Jam Mulai, Jam Akhir dipisah. Ruang & Jenis Ruang di paling kanan sebelum Status.
+        const header = ["Kode MP", "Nama MP", "Kelas", "SKS", "Pendidik", "Hari", "Jam Mulai", "Jam Akhir", "Ruang", "Jenis Ruang", "Status", "Pesan Konflik"];
+
+        if (activeTab === 'mapel' || activeTab === 'main_display') {
+            const wsData = [header];
             sortedPlots.forEach(p => {
                 const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
                 const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
-                const jadwal = p.hari && p.waktu_details && p.waktu_details.length ? `${p.hari}, ${p.waktu_details[0].jam_mulai} - ${p.waktu_details[p.waktu_details.length - 1].jam_selesai}` : 'Belum diplot';
+                const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
+                const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
                 wsData.push([
                     p.matakuliah?.kode_mk || '-',
                     p.matakuliah?.nama_mk || '-',
                     p.matakuliah?.kelas || '-',
                     p.matakuliah?.sks || '-',
-                    p.matakuliah?.jenis_ruang || '-',
                     pendidik,
-                    ruang,
                     p.hari || '-',
-                    jadwal,
+                    jamMulai,
+                    jamAkhir,
+                    ruang,
+                    p.matakuliah?.jenis_ruang || '-',
                     p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
                     p.conflict_message || '-'
                 ]);
@@ -482,27 +518,22 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
             XLSX.writeFile(wb, `Jadwal_Berdasarkan_Mapel_${date}.xlsx`);
         } 
         else if (activeTab === 'dosen') {
-            const wsData = [
-                ["Nama Pendidik", "Total SKS", "Kode MP", "Mata Kuliah", "Kelas", "SKS", "Jenis Ruang", "Jadwal", "Ruang", "Status"]
-            ];
+            const wsData = [header];
             const groups = new Map();
             dosens.forEach(d => {
                 const name = d.nama_dosen?.trim();
-                if (name) groups.set(name, { nama_dosen: name, totalSks: 0, plots: [] });
+                if (name) groups.set(name, { nama_dosen: name, plots: [] });
             });
-            groups.set('Belum Ditentukan', { nama_dosen: 'Belum Ditentukan', totalSks: 0, plots: [] });
+            groups.set('Belum Ditentukan', { nama_dosen: 'Belum Ditentukan', plots: [] });
             
             plots.forEach(p => {
                 let assigned = false;
                 const assign = (dosenObj: any) => {
                     const name = dosenObj ? dosenObj.nama_dosen?.trim() : 'Belum Ditentukan';
-                    if (!groups.has(name)) groups.set(name, { nama_dosen: name, totalSks: 0, plots: [] });
+                    if (!groups.has(name)) groups.set(name, { nama_dosen: name, plots: [] });
                     groups.get(name).plots.push(p);
-                    const divisor = p.krs_dosen_kedua_id ? 2 : 1;
-                    groups.get(name).totalSks += (p.matakuliah?.sks / divisor || 0);
                     assigned = true;
                 };
-                
                 if (p.dosen || p.krs_dosen_id) assign(p.dosen || dosens.find((d: any) => d.id === p.krs_dosen_id));
                 if (p.dosenKedua || p.krs_dosen_kedua_id) assign(p.dosenKedua || dosens.find((d: any) => d.id === p.krs_dosen_kedua_id));
                 if (!assigned) assign(null);
@@ -510,22 +541,26 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
             groups.forEach((g) => {
                 if (g.plots.length === 0) {
-                    wsData.push([g.nama_dosen, 0, "-", "Belum ada kelas", "-", "-", "-", "-", "-", "-"]);
+                    wsData.push(["-", "Belum ada kelas", "-", "-", g.nama_dosen, "-", "-", "-", "-", "-", "-", "-"]);
                 } else {
                     g.plots.forEach((p: any) => {
-                        const jadwal = p.hari && p.waktu_details && p.waktu_details.length ? `${p.hari}, ${p.waktu_details[0].jam_mulai} - ${p.waktu_details[p.waktu_details.length - 1].jam_selesai}` : 'Belum diplot';
+                        const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
                         const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
+                        const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
+                        const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
                         wsData.push([
-                            g.nama_dosen,
-                            g.totalSks,
                             p.matakuliah?.kode_mk || '-',
                             p.matakuliah?.nama_mk || '-',
                             p.matakuliah?.kelas || '-',
                             p.matakuliah?.sks || '-',
-                            p.matakuliah?.jenis_ruang || '-',
-                            jadwal,
+                            pendidik,
+                            p.hari || '-',
+                            jamMulai,
+                            jamAkhir,
                             ruang,
-                            p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot')
+                            p.matakuliah?.jenis_ruang || '-',
+                            p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
+                            p.conflict_message || '-'
                         ]);
                     });
                 }
@@ -535,9 +570,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
             XLSX.writeFile(wb, `Jadwal_Berdasarkan_Pendidik_${date}.xlsx`);
         }
         else if (activeTab === 'ruang') {
-            const wsData = [
-                ["Nama Ruang", "Kapasitas", "Hari", "Jam", "Kode MP", "Mata Kuliah", "Kelas", "Pendidik"]
-            ];
+            const wsData = [header];
             const rGroups = new Map();
             ruangs.forEach((r: any) => {
                 const name = r.nama_ruang?.trim();
@@ -553,21 +586,27 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
             rGroups.forEach((g) => {
                 if (g.plots.length === 0) {
-                    wsData.push([g.ruang.nama_ruang, g.ruang.kapasitas || '-', "-", "-", "-", "Belum ada kelas", "-", "-"]);
+                    wsData.push(["-", "Belum ada kelas", "-", "-", "-", "-", "-", "-", g.ruang.nama_ruang, "-", "-", "-"]);
                 } else {
                     const sorted = [...g.plots].sort((a,b) => (a.hari||'').localeCompare(b.hari||''));
                     sorted.forEach(p => {
                         const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
-                        const jadwal = p.hari && p.waktu_details && p.waktu_details.length ? `${p.waktu_details[0].jam_mulai} - ${p.waktu_details[p.waktu_details.length - 1].jam_selesai}` : '-';
+                        const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
+                        const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
+                        const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
                         wsData.push([
-                            g.ruang.nama_ruang,
-                            g.ruang.kapasitas || '-',
-                            p.hari || '-',
-                            jadwal,
                             p.matakuliah?.kode_mk || '-',
                             p.matakuliah?.nama_mk || '-',
                             p.matakuliah?.kelas || '-',
-                            pendidik
+                            p.matakuliah?.sks || '-',
+                            pendidik,
+                            p.hari || '-',
+                            jamMulai,
+                            jamAkhir,
+                            ruang,
+                            p.matakuliah?.jenis_ruang || '-',
+                            p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
+                            p.conflict_message || '-'
                         ]);
                     });
                 }
@@ -577,9 +616,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
             XLSX.writeFile(wb, `Jadwal_Berdasarkan_Ruangan_${date}.xlsx`);
         }
         else if (activeTab === 'hari') {
-            const wsData = [
-                ["Hari", "Waktu", "Ruang", "Kode MP", "Mata Kuliah", "Kelas", "Pendidik"]
-            ];
+            const wsData = [header];
             const hGroups = new Map();
             const hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
             hariList.forEach(h => hGroups.set(h, []));
@@ -600,16 +637,22 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                 });
                 sorted.forEach((p: any) => {
                     const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
-                    const ruang = p.ruang ? p.ruang.nama_ruang : '-';
-                    const jadwal = p.waktu_details && p.waktu_details.length ? `${p.waktu_details[0].jam_mulai} - ${p.waktu_details[p.waktu_details.length - 1].jam_selesai}` : '-';
+                    const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
+                    const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
+                    const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
                     wsData.push([
-                        hari,
-                        jadwal,
-                        ruang,
                         p.matakuliah?.kode_mk || '-',
                         p.matakuliah?.nama_mk || '-',
                         p.matakuliah?.kelas || '-',
-                        pendidik
+                        p.matakuliah?.sks || '-',
+                        pendidik,
+                        hari,
+                        jamMulai,
+                        jamAkhir,
+                        ruang,
+                        p.matakuliah?.jenis_ruang || '-',
+                        p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
+                        p.conflict_message || '-'
                     ]);
                 });
             });
@@ -1561,9 +1604,22 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             >
                                 <Trash2 className="h-4 w-4" /> Reset Semua
                             </button>
+                            <input 
+                                type="file" 
+                                className="hidden" 
+                                ref={importJadwalInputRef} 
+                                onChange={handleImportJadwalChange} 
+                                accept=".xlsx, .xls, .csv" 
+                            />
+                            <button
+                                onClick={handleImportJadwalClick}
+                                className="ml-auto flex items-center gap-2 rounded bg-emerald-600 px-4 py-2 text-white shadow hover:bg-emerald-700"
+                            >
+                                <Upload className="h-4 w-4" /> Import Jadwal Excel
+                            </button>
                             <button
                                 onClick={handleExport}
-                                className="ml-auto flex items-center gap-2 rounded bg-slate-800 px-4 py-2 text-white shadow hover:bg-slate-900"
+                                className="flex items-center gap-2 rounded bg-slate-800 px-4 py-2 text-white shadow hover:bg-slate-900"
                             >
                                 <Download className="h-4 w-4" /> Export Excel
                             </button>

@@ -17,7 +17,8 @@ class KrsPlottingService
     {
         $pad = ": " . str_repeat(' ', 65536) . "\n\n";
         echo "data: " . json_encode(['iteration' => 1, 'message' => "Set 1: Inisiasi plotting pertama..."]) . "\n\n" . $pad;
-        @ob_flush(); flush();
+        @ob_flush();
+        flush();
         usleep(300000);
 
         // Hapus (reset) jadwal sebelumnya yang BELUM dikunci
@@ -40,28 +41,31 @@ class KrsPlottingService
         $score = $this->calculateScore($periodId, $batasanWaktu3);
 
         echo "data: " . json_encode(['iteration' => 1, 'score' => $score, 'message' => "Set 1 selesai. Sisa Konflik & Overload: $score"]) . "\n\n" . $pad;
-        @ob_flush(); flush();
+        @ob_flush();
+        flush();
 
         if ($score == 0) {
             echo "data: " . json_encode(['done' => true, 'message' => "Selesai! Jadwal sempurna tanpa bentrok dan tanpa overload ditemukan."]) . "\n\n" . $pad;
-            @ob_flush(); flush();
+            @ob_flush();
+            flush();
             usleep(300000);
             return;
         }
 
         $bestScore = $score;
-        $bestPlots = KrsJadwalPlot::where('krs_period_id', $periodId)->get()->map(function($plot) {
+        $bestPlots = KrsJadwalPlot::where('krs_period_id', $periodId)->get()->map(function ($plot) {
             return $plot->getAttributes();
         })->toArray();
 
         for ($i = 2; $i <= $maxSets; $i++) {
             echo "data: " . json_encode(['iteration' => $i, 'message' => "Set $i: Membongkar jadwal yang konflik dan mengacak ulang..."]) . "\n\n" . $pad;
-            @ob_flush(); flush();
+            @ob_flush();
+            flush();
             usleep(300000);
 
             // RUIN step: 1. Kosongkan jadwal yang konflik (kecuali yang dikunci)
             $conflicts = KrsJadwalPlot::where('krs_period_id', $periodId)->where('is_conflict', true)->get();
-            foreach($conflicts as $c) {
+            foreach ($conflicts as $c) {
                 if (!in_array($c->id, $lockedPlotIds)) {
                     $c->update(['hari' => null, 'krs_ruang_id' => null, 'krs_waktu_ids' => null, 'is_conflict' => false, 'conflict_message' => null]);
                 }
@@ -127,25 +131,26 @@ class KrsPlottingService
             $numToRuin = max(1, (int)($successesCollection->count() * 0.25));
             if ($successesCollection->count() > 0) {
                 $ruinTargets = $successesCollection->random(min($numToRuin, $successesCollection->count()));
-                foreach($ruinTargets as $r) {
+                foreach ($ruinTargets as $r) {
                     $r->update(['hari' => null, 'krs_ruang_id' => null, 'krs_waktu_ids' => null, 'is_conflict' => false, 'conflict_message' => null]);
                 }
             }
 
             // RECREATE step:
             $this->plotAutoCore($periodId, $batasanWaktu, $batasanWaktu2, $batasanWaktu3, $batasanRuangan, true);
-            
+
             // Validasi ulang untuk memastikan status konflik termutakhir
             $this->validateConflicts($periodId);
 
             $currentScore = $this->calculateScore($periodId, $batasanWaktu3);
             echo "data: " . json_encode(['iteration' => $i, 'score' => $currentScore, 'message' => "Set $i selesai. Sisa Konflik & Overload: $currentScore"]) . "\n\n" . $pad;
-            @ob_flush(); flush();
+            @ob_flush();
+            flush();
             usleep(300000);
 
             if ($currentScore < $bestScore) {
                 $bestScore = $currentScore;
-                $bestPlots = KrsJadwalPlot::where('krs_period_id', $periodId)->get()->map(function($plot) {
+                $bestPlots = KrsJadwalPlot::where('krs_period_id', $periodId)->get()->map(function ($plot) {
                     return $plot->getAttributes();
                 })->toArray();
             }
@@ -169,13 +174,14 @@ class KrsPlottingService
         $this->validateConflicts($periodId);
 
         echo "data: " . json_encode(['done' => true, 'message' => "Proses selesai! Menyimpan hasil terbaik dengan $bestScore konflik."]) . "\n\n" . $pad;
-        @ob_flush(); flush();
+        @ob_flush();
+        flush();
     }
 
     private function calculateScore($periodId, $batasanWaktu3)
     {
         $conflicts = KrsJadwalPlot::where('krs_period_id', $periodId)->where('is_conflict', true)->count();
-        
+
         $overloads = 0;
         $rule3Active = $batasanWaktu3['aktif'] ?? true;
         if ($rule3Active) {
@@ -185,7 +191,7 @@ class KrsPlottingService
                 if ($s->hari && $s->matakuliah) {
                     $divisor = $s->krs_dosen_kedua_id ? 2 : 1;
                     $addedSks = $s->matakuliah->sks / $divisor;
-                    
+
                     if ($s->krs_dosen_id) {
                         if (!isset($dailyLoad[$s->hari][$s->krs_dosen_id])) {
                             $dailyLoad[$s->hari][$s->krs_dosen_id] = 0;
@@ -246,20 +252,24 @@ class KrsPlottingService
         if ($ruleTanpaRuangan && !$isRecreate) {
             $uniqueKelas = KrsMatakuliah::where('krs_period_id', $periodId)
                 ->pluck('kelas')
-                ->map(function($k) { return explode(',', $k); })
+                ->map(function ($k) {
+                    return explode(',', $k);
+                })
                 ->flatten()
-                ->map(function($k) { return trim($k); })
+                ->map(function ($k) {
+                    return trim($k);
+                })
                 ->unique()
                 ->filter();
             $existingRuangs = KrsRuang::where('krs_period_id', $periodId)->get();
             foreach ($uniqueKelas as $kelasName) {
                 $kelasName = trim($kelasName);
                 if (empty($kelasName)) continue;
-                
-                $exists = $existingRuangs->contains(function($r) use ($kelasName) {
+
+                $exists = $existingRuangs->contains(function ($r) use ($kelasName) {
                     return strcasecmp(trim($r->nama_ruang), $kelasName) === 0 || strcasecmp(trim($r->kode_ruang), $kelasName) === 0;
                 });
-                
+
                 if (!$exists) {
                     $newRuang = KrsRuang::create([
                         'krs_period_id' => $periodId,
@@ -341,7 +351,7 @@ class KrsPlottingService
                         }
                     }
                 }
-                
+
                 if ($plot->krs_dosen_kedua_id && $plot->dosenKedua) {
                     $namaDosen2 = strtolower(trim($plot->dosenKedua->nama_dosen));
                     if (!isset($dosenUsage[$namaDosen2])) $dosenUsage[$namaDosen2] = 0;
@@ -370,11 +380,11 @@ class KrsPlottingService
             ->where('is_istirahat', false)
             ->orderBy('jam_mulai', 'asc')
             ->get();
-            
+
         $istirahatWaktus = KrsWaktu::where('krs_period_id', $periodId)
             ->where('is_istirahat', true)
             ->get();
-            
+
         if ($waktus->isEmpty()) {
             throw new \Exception("Data waktu belum diisi/generate.");
         }
@@ -397,7 +407,7 @@ class KrsPlottingService
 
             // Check if already plotted and
             $existingPlot = $existingPlots->firstWhere('krs_matakuliah_id', $mk->id);
-            
+
             // Jika sudah ada jadwal yang valid (dianggap sebagai manual plot yang dikunci atau sudah well-plotted)
             if ($existingPlot && $existingPlot->hari && $existingPlot->krs_waktu_ids && $existingPlot->krs_ruang_id && !$existingPlot->is_conflict) {
                 continue;
@@ -475,7 +485,7 @@ class KrsPlottingService
                             if ($namaDosenKedua) {
                                 $currentDailySks2 = $dosenDailySks[$hari][$namaDosenKedua] ?? 0;
                                 if (($currentDailySks2 + $addedSks) > 6) {
-                                    continue; 
+                                    continue;
                                 }
                             }
                         }
@@ -559,9 +569,9 @@ class KrsPlottingService
                                         // Cari ruang yang namanya sama dengan nama kelas ($mk->kelas)
                                         // Jika multiple (dipisah koma), ambil yang pertama
                                         $className = trim(explode(',', $mk->kelas)[0] ?? '');
-                                        $roomForBlock = collect($sortedRuangs)->first(function($r) use ($className) {
-                                            return strcasecmp(trim($r->nama_ruang), $className) === 0 || 
-                                                   strcasecmp(trim($r->kode_ruang), $className) === 0;
+                                        $roomForBlock = collect($sortedRuangs)->first(function ($r) use ($className) {
+                                            return strcasecmp(trim($r->nama_ruang), $className) === 0 ||
+                                                strcasecmp(trim($r->kode_ruang), $className) === 0;
                                         });
 
                                         if ($roomForBlock) {
@@ -608,21 +618,21 @@ class KrsPlottingService
                                         $remainAfterFill     = $freeSlotsBeforeFill - $targetSlots;
                                         // Bonus kecil untuk starting slot lebih awal agar compact
                                         $score = $remainAfterFill * 100 + $i;
-                                        
+
                                         if ($ruleTanpaRuangan) {
                                             $hariIndex = array_search($hari, $hariList);
                                             if ($hariIndex === false) $hariIndex = 0;
-                                            
+
                                             // Penalti besar untuk hari yang lebih akhir (memaksa rata kiri ke Senin, Selasa, dst)
                                             $score += ($hariIndex * 10000);
-                                            
+
                                             // Bonus jika dosen SUDAH punya jadwal di hari ini
                                             // agar mengajar 1 hari penuh dan tidak mlencong
                                             if ($slotsTakenInDay > 0) {
                                                 $score -= 5000;
                                             }
                                         }
-                                        
+
                                         $candidates[] = [
                                             'hari'   => $hari,
                                             'block'  => $blockIds,

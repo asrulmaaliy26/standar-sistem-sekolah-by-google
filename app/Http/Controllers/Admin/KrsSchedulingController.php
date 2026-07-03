@@ -244,6 +244,184 @@ class KrsSchedulingController extends Controller
         }
     }
 
+    public function importJadwal(Request $request)
+    {
+        $request->validate([
+            'file'      => 'required|file|mimes:csv,txt,xlsx,xls',
+            'period_id' => 'required|exists:krs_periods,id',
+        ]);
+
+        try {
+            require_once app_path('Services/SimpleXLSX.php');
+            $file     = $request->file('file');
+            $periodId = $request->period_id;
+
+            if ($xlsx = \Shuchkin\SimpleXLSX::parse($file->getRealPath())) {
+                $rows = $xlsx->rows();
+                if (count($rows) <= 1) {
+                    return redirect()->back()->with('error', 'File Excel kosong atau tidak memiliki data.');
+                }
+
+                array_shift($rows); // Remove header row
+
+                \Illuminate\Support\Facades\DB::beginTransaction();
+
+                $waktus = \App\Models\KrsWaktu::where('krs_period_id', $periodId)->get();
+                $ruangs = \App\Models\KrsRuang::where('krs_period_id', $periodId)->get();
+                $dosens = \App\Models\KrsDosen::where('krs_period_id', $periodId)->get();
+
+                // Build case-insensitive dosen map: trim nama_dosen -> model
+                $dosenMap = [];
+                foreach ($dosens as $d) {
+                    $key = strtolower(trim($d->nama_dosen ?? ''));
+                    if ($key) $dosenMap[$key] = $d;
+                }
+
+                // Build case-insensitive ruang map: trim nama_ruang -> model
+                $ruangMap = [];
+                foreach ($ruangs as $r) {
+                    $key = strtolower(trim($r->nama_ruang ?? ''));
+                    if ($key) $ruangMap[$key] = $r;
+                }
+
+                $updatedCount = 0;
+                $skippedCount = 0;
+
+                foreach ($rows as $rowIndex => $row) {
+                    // Skip rows with no Kode MP
+                    $kodeMp = trim($row[0] ?? '');
+                    $kelas  = trim($row[2] ?? '');
+
+                    \Log::info("[ImportJadwal] Row #{$rowIndex}: kodeMp='{$kodeMp}', kelas='{$kelas}', raw=" . json_encode(array_slice($row, 0, 10)));
+
+                    if (!$kodeMp || !$kelas || $kodeMp === '-') {
+                        \Log::info("[ImportJadwal] Row #{$rowIndex}: SKIPPED (empty kodeMp or kelas)");
+                        continue;
+                    }
+
+                    // Find the matching plot
+                    $plot = \App\Models\KrsJadwalPlot::where('krs_period_id', $periodId)
+                        ->whereHas('matakuliah', function ($q) use ($kodeMp, $kelas) {
+                            $q->where('kode_mk', $kodeMp)->where('kelas', $kelas);
+                        })->first();
+
+                    if (!$plot) {
+                        \Log::warning("[ImportJadwal] Row #{$rowIndex}: PLOT NOT FOUND for kodeMp='{$kodeMp}', kelas='{$kelas}', periodId={$periodId}");
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    \Log::info("[ImportJadwal] Row #{$rowIndex}: PLOT FOUND id={$plot->id}");
+
+                    $pendidikStr = trim($row[4] ?? '');
+                    $hariStr     = trim($row[5] ?? '');
+                    $jamMulaiStr = trim($row[6] ?? '');
+                    $jamAkhirStr = trim($row[7] ?? '');
+                    $ruangStr    = trim($row[8] ?? '');
+
+                    // --- Resolve HARI ---
+                    $newHari = ($hariStr && $hariStr !== '-') ? $hariStr : null;
+
+                    // --- Resolve PENDIDIK (case-insensitive) ---
+                    $dosenId      = null;
+                    $dosenKeduaId = null;
+                    if ($pendidikStr && $pendidikStr !== 'Belum Diplot' && $pendidikStr !== '-') {
+                        $parts = array_map('trim', explode('&', $pendidikStr));
+                        if (!empty($parts[0])) {
+                            $key = strtolower($parts[0]);
+                            if (isset($dosenMap[$key])) $dosenId = $dosenMap[$key]->id;
+                        }
+                        if (!empty($parts[1])) {
+                            $key = strtolower($parts[1]);
+                            if (isset($dosenMap[$key])) $dosenKeduaId = $dosenMap[$key]->id;
+                        }
+                    }
+
+                    // --- Resolve RUANG (case-insensitive, strip kapasitas "(xxx)") ---
+                    $ruangId = null;
+                    if ($ruangStr && $ruangStr !== '-') {
+                        // "ARI.R. 101 (Besar)" -> "ARI.R. 101"
+                        $ruangName = strtolower(trim(preg_replace('/\s*\(.*?\)\s*$/', '', $ruangStr)));
+                        if (isset($ruangMap[$ruangName])) {
+                            $ruangId = $ruangMap[$ruangName]->id;
+                        }
+                    }
+
+                    // --- Resolve WAKTU ---
+                    // SimpleXLSX may return time as:
+                    //   "1970-01-01 06:30:00"  (full datetime with colons)
+                    //   "06:30:00" or "06:30"  (plain time with colons)
+                    //   "09.00.00" or "09.20"  (plain time with dots — some Excel exports)
+                    $waktuIds = [];
+                    if ($jamMulaiStr && $jamAkhirStr && $jamMulaiStr !== '-' && $jamAkhirStr !== '-') {
+                        // Match HH:MM or HH.MM (with colon or dot separator)
+                        preg_match('/(\d{1,2}[:.]\d{2})/', $jamMulaiStr, $mMulai);
+                        preg_match('/(\d{1,2}[:.]\d{2})/', $jamAkhirStr, $mAkhir);
+
+                        if (!empty($mMulai[1]) && !empty($mAkhir[1])) {
+                            // Normalize dots to colons: "09.20" -> "09:20"
+                            $jamMulaiNorm = str_replace('.', ':', $mMulai[1]);
+                            $jamAkhirNorm = str_replace('.', ':', $mAkhir[1]);
+
+                            // Ensure HH:MM:SS format
+                            if (strlen($jamMulaiNorm) === 5) $jamMulaiNorm .= ':00';
+                            if (strlen($jamAkhirNorm) === 5) $jamAkhirNorm .= ':00';
+
+                            $tMulai = strtotime($jamMulaiNorm);
+                            $tAkhir = strtotime($jamAkhirNorm);
+
+                            foreach ($waktus as $w) {
+                                // DB stores "HH:MM:SS" — compare only HH:MM portion
+                                $tWMulai = strtotime(substr($w->jam_mulai, 0, 5) . ':00');
+                                $tWAkhir = strtotime(substr($w->jam_selesai, 0, 5) . ':00');
+                                // Include all slots within the exported range
+                                if ($tWMulai >= $tMulai && $tWAkhir <= $tAkhir) {
+                                    $waktuIds[] = $w->id;
+                                }
+                            }
+                        }
+                    }
+
+                    // Build update payload — only override fields that have new resolved values.
+                    // If pendidik in Excel is "Belum Diplot"/'-', keep existing dosen.
+                    $updateData = [
+                        'hari'            => $newHari,
+                        'krs_waktu_ids'   => !empty($waktuIds) ? $waktuIds : null,
+                        'krs_ruang_id'    => $ruangId,
+                        'is_conflict'     => false,
+                        'conflict_message'=> null,
+                    ];
+
+                    // Only override dosen if Excel column had a non-empty value
+                    if ($pendidikStr && $pendidikStr !== '-') {
+                        $updateData['krs_dosen_id']       = $dosenId;
+                        $updateData['krs_dosen_kedua_id'] = $dosenKeduaId;
+                    }
+
+                    $plot->update($updateData);
+                    $updatedCount++;
+                }
+
+                \Illuminate\Support\Facades\DB::commit();
+
+                // Re-validate conflicts for the whole period
+                $plottingService = app(\App\Services\KrsPlottingService::class);
+                $plottingService->validateConflicts($periodId);
+
+                $msg = "Jadwal berhasil diupdate dari file Excel. ({$updatedCount} baris diupdate";
+                if ($skippedCount) $msg .= ", {$skippedCount} baris tidak ditemukan/dilewati";
+                $msg .= ')';
+
+                return redirect()->back()->with('success', $msg);
+            } else {
+                return redirect()->back()->with('error', 'Gagal membaca file Excel: ' . \Shuchkin\SimpleXLSX::parseError());
+            }
+        } catch (Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return redirect()->back()->with('error', 'Terjadi kesalahan saat import jadwal: ' . $e->getMessage());
+        }
+    }
+
     public function destroyMasterData(Request $request)
     {
         $request->validate([
