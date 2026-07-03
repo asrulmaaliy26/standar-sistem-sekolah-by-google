@@ -165,8 +165,7 @@ export default function TabPendidik({
                                         const dailyLoad: Record<string, number> = {};
                                         g.plots.forEach((p: Plot) => {
                                             if (p.hari) {
-                                                const divisor = p.krs_dosen_kedua_id ? 2 : 1;
-                                                dailyLoad[p.hari] = (dailyLoad[p.hari] || 0) + ((p.matakuliah.sks / divisor) || 0);
+                                                dailyLoad[p.hari] = (dailyLoad[p.hari] || 0) + (p.matakuliah.sks || 0);
                                             }
                                         });
                                         return g.plots.map((p: Plot) => {

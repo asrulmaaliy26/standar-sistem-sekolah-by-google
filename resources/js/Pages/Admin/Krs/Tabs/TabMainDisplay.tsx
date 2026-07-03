@@ -40,14 +40,13 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
     plots.forEach(p => {
         if (p.hari) {
             if (!dosenDailyLoad[p.hari]) dosenDailyLoad[p.hari] = {};
-            const divisor = p.krs_dosen_kedua_id ? 2 : 1;
             const sks = Number(p.matakuliah.sks) || 0;
             
             if (p.krs_dosen_id) {
-                dosenDailyLoad[p.hari][p.krs_dosen_id] = (dosenDailyLoad[p.hari][p.krs_dosen_id] || 0) + (sks / divisor);
+                dosenDailyLoad[p.hari][p.krs_dosen_id] = (dosenDailyLoad[p.hari][p.krs_dosen_id] || 0) + sks;
             }
             if (p.krs_dosen_kedua_id) {
-                dosenDailyLoad[p.hari][p.krs_dosen_kedua_id] = (dosenDailyLoad[p.hari][p.krs_dosen_kedua_id] || 0) + (sks / divisor);
+                dosenDailyLoad[p.hari][p.krs_dosen_kedua_id] = (dosenDailyLoad[p.hari][p.krs_dosen_kedua_id] || 0) + sks;
             }
         }
     });
