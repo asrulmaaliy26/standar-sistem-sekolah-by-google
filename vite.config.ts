@@ -23,4 +23,7 @@ export default defineConfig({
             '@': resolve(__dirname, 'resources/js'),
         },
     },
+    define: {
+        'process.env': {}
+    }
 });

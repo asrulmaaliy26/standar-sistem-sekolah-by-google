@@ -173,7 +173,7 @@ export default function TabPendidik({
                                             return (
                                                 <tr
                                                     key={p.id}
-                                                    className={`border-border border-b last:border-0 ${isOverload ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20' : 'hover:bg-muted/30'}`}
+                                                    className={`border-border border-b last:border-0 ${p.is_conflict ? 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20' : isOverload ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20' : 'hover:bg-muted/30'}`}
                                                 >
                                                     <td className="p-3 font-medium">{p.matakuliah.kode_mk}</td>
                                                     <td className="p-3">
@@ -187,17 +187,18 @@ export default function TabPendidik({
                                                     <td className="p-3">{p.matakuliah.jenis_ruang ?? '-'}</td>
                                                     <td className="p-3">
                                                         {p.hari && p.waktu_details && p.waktu_details.length > 0 ? (
-                                                            <span className={`${isOverload ? 'bg-amber-100 text-amber-700 dark:bg-amber-800/50 dark:text-amber-400' : 'bg-primary/10 text-primary'} inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold`}>
+                                                            <span className={`${p.is_conflict ? 'bg-red-100 text-red-700 dark:bg-red-800/50 dark:text-red-400' : isOverload ? 'bg-amber-100 text-amber-700 dark:bg-amber-800/50 dark:text-amber-400' : 'bg-primary/10 text-primary'} inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold`}>
                                                                 {p.hari}, {p.waktu_details[0].jam_mulai} -{' '}
                                                                 {p.waktu_details[p.waktu_details.length - 1].jam_selesai}
-                                                                <span className={`${isOverload ? 'text-amber-600/80 dark:text-amber-400/80' : 'text-muted-foreground'} ml-1 font-normal`}>
+                                                                <span className={`${p.is_conflict ? 'text-red-600/80 dark:text-red-400/80' : isOverload ? 'text-amber-600/80 dark:text-amber-400/80' : 'text-muted-foreground'} ml-1 font-normal`}>
                                                                     (
                                                                     {p.ruang
                                                                         ? `${p.ruang.nama_ruang} [${p.ruang.kapasitas ?? '-'}]`
                                                                         : '-'}
                                                                     )
                                                                 </span>
-                                                                {isOverload && <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white rounded-md text-[9px] uppercase tracking-wider font-bold shadow-sm">⚠️ Overload &gt; 6 SKS</span>}
+                                                                {isOverload && <span className="ml-1 px-1.5 py-0.5 bg-amber-500 text-white rounded-md text-[9px] uppercase tracking-wider font-bold shadow-sm">⚠️ Overload &gt; 6 SKS</span>}
+                                                                {p.is_conflict && <span className="ml-1 px-1.5 py-0.5 bg-red-600 text-white rounded-md text-[9px] uppercase tracking-wider font-bold shadow-sm" title={p.conflict_message || 'Konflik'}>⚠️ Bentrok</span>}
                                                             </span>
                                                         ) : (
                                                             <span className="text-muted-foreground text-xs italic">

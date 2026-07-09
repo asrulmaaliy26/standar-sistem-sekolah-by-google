@@ -43,4 +43,9 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/guru.php';
 require __DIR__ . '/siswa.php';
 
+// API route for external applications (like PsychoApps) to fetch signatures
+Route::get('/api/sertifikat/penandatangan', [\App\Http\Controllers\Persuratan\SertifikatController::class, 'apiPenandatangan']);
+
+// Public route for external applications to sign certificates via HMAC Token
+Route::get('/public/sertifikat/sign', [\App\Http\Controllers\Persuratan\SertifikatController::class, 'publicSign'])->name('public.sertifikat.sign');
 

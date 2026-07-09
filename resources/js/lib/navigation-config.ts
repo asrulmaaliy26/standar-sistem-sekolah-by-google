@@ -129,6 +129,11 @@ export const roleNavigation: Record<string, NavItem[]> = {
             href: '/admin/surat-keluar',
             icon: Send,
         },
+        {
+            title: 'Sertifikat',
+            href: '/admin/sertifikat',
+            icon: ClipboardList,
+        },
     ],
 
     'admin penjadwalan': [

@@ -102,4 +102,10 @@ Route::middleware(['auth', 'verified', 'admin_persuratan'])->prefix('admin')->na
     // Surat Keluar
     Route::resource('surat-keluar', \App\Http\Controllers\Persuratan\SuratKeluarController::class)
         ->names('surat-keluar');
+
+    // Sertifikat
+    Route::get('sertifikat', [\App\Http\Controllers\Persuratan\SertifikatController::class, 'index'])->name('sertifikat.index');
+    Route::post('sertifikat/penandatangan', [\App\Http\Controllers\Persuratan\SertifikatController::class, 'storePenandatangan'])->name('sertifikat.penandatangan.store');
+    Route::post('sertifikat/penandatangan/{id}', [\App\Http\Controllers\Persuratan\SertifikatController::class, 'updatePenandatangan'])->name('sertifikat.penandatangan.update');
+    Route::delete('sertifikat/penandatangan/{id}', [\App\Http\Controllers\Persuratan\SertifikatController::class, 'destroyPenandatangan'])->name('sertifikat.penandatangan.destroy');
 });
