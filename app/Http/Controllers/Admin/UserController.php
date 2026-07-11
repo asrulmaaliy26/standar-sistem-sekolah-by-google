@@ -31,7 +31,7 @@ class UserController extends Controller
                 $q->whereHas('roles', fn($r) => $r->where('name', $filterRole));
             })
             ->latest()
-            ->paginate(25)
+            ->paginate(10)
             ->withQueryString()
             ->through(fn($user) => [
                 'id'               => $user->id,

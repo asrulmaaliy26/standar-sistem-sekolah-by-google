@@ -293,85 +293,63 @@ export default function UsersIndex({ users, roles, totalUsers, filters }: UsersI
                 </div>
 
                 {/* ── Pagination ── */}
-                {users.meta && users.meta.last_page > 1 && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                {users.meta && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-border">
                         <p className="text-sm text-muted-foreground">
-                            Halaman{' '}
-                            <span className="font-medium text-foreground">{users.meta.current_page}</span>
-                            {' '}dari{' '}
-                            <span className="font-medium text-foreground">{users.meta.last_page}</span>
-                            {' '}— total{' '}
-                            <span className="font-medium text-foreground">{users.meta.total}</span> user
+                            Menampilkan{' '}
+                            <span className="font-semibold text-foreground">{users.meta.from ?? 0}</span>
+                            {' – '}
+                            <span className="font-semibold text-foreground">{users.meta.to ?? 0}</span>
+                            {' dari '}
+                            <span className="font-semibold text-foreground">{users.meta.total}</span>
+                            {' user'}
+                            {users.meta.last_page > 1 && (
+                                <span className="ml-1 text-muted-foreground">
+                                    (Halaman {users.meta.current_page} dari {users.meta.last_page})
+                                </span>
+                            )}
                         </p>
-                        <div className="flex items-center gap-1">
-                            {/* First */}
-                            {users.meta.current_page > 1 && (
-                                <Link
-                                    href={users.links?.first ?? '#'}
-                                    className="px-2.5 py-1.5 text-xs rounded-md border border-border bg-background hover:bg-muted transition-colors"
-                                >
-                                    «
-                                </Link>
-                            )}
-                            {/* Prev */}
-                            {users.links?.prev && (
-                                <Link
-                                    href={users.links.prev}
-                                    className="px-3 py-1.5 text-sm rounded-md border border-border bg-background hover:bg-muted transition-colors"
-                                >
-                                    ← Prev
-                                </Link>
-                            )}
 
-                            {/* Page number buttons (max 5 visible) */}
-                            {Array.from({ length: users.meta.last_page }, (_, i) => i + 1)
-                                .filter((p) => {
-                                    const cur = users.meta.current_page
-                                    return p === 1 || p === users.meta.last_page || Math.abs(p - cur) <= 2
-                                })
-                                .reduce<(number | '...')[]>((acc, p, i, arr) => {
-                                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('...')
-                                    acc.push(p)
-                                    return acc
-                                }, [])
-                                .map((p, i) =>
-                                    p === '...' ? (
-                                        <span key={`ellipsis-${i}`} className="px-2 py-1.5 text-sm text-muted-foreground">…</span>
-                                    ) : (
+                        {/* Tombol halaman — gunakan users.meta.links (array dari Laravel) */}
+                        {users.meta.last_page > 1 && (
+                            <div className="flex items-center gap-1 flex-wrap justify-center">
+                                {(users.meta.links as { url: string | null; label: string; active: boolean }[]).map((link, i) => {
+                                    // Skip label «Previous» dan «Next» teks bawaan Laravel
+                                    const isFirst  = i === 0
+                                    const isLast   = i === users.meta.links.length - 1
+                                    const label    = link.label
+                                        .replace('&laquo;', '«')
+                                        .replace('&raquo;', '»')
+                                        .replace('Previous', '← Prev')
+                                        .replace('Next', 'Next →')
+
+                                    if (!link.url) {
+                                        return (
+                                            <span
+                                                key={i}
+                                                className="px-3 py-1.5 text-sm rounded-md border border-border bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                                                dangerouslySetInnerHTML={{ __html: label }}
+                                            />
+                                        )
+                                    }
+
+                                    return (
                                         <Link
-                                            key={p}
-                                            href={`${route('admin.users.index')}?page=${p}&search=${encodeURIComponent(search)}&role=${encodeURIComponent(roleFilter)}`}
+                                            key={i}
+                                            href={link.url}
                                             className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-                                                p === users.meta.current_page
-                                                    ? 'border-blue-600 bg-blue-600 text-white'
+                                                link.active
+                                                    ? 'border-blue-600 bg-blue-600 text-white font-semibold'
                                                     : 'border-border bg-background hover:bg-muted'
+                                            } ${
+                                                isFirst || isLast ? 'text-xs' : ''
                                             }`}
-                                        >
-                                            {p}
-                                        </Link>
-                                    ),
-                                )
-                            }
-
-                            {/* Next */}
-                            {users.links?.next && (
-                                <Link
-                                    href={users.links.next}
-                                    className="px-3 py-1.5 text-sm rounded-md border border-border bg-background hover:bg-muted transition-colors"
-                                >
-                                    Next →
-                                </Link>
-                            )}
-                            {/* Last */}
-                            {users.meta.current_page < users.meta.last_page && (
-                                <Link
-                                    href={users.links?.last ?? '#'}
-                                    className="px-2.5 py-1.5 text-xs rounded-md border border-border bg-background hover:bg-muted transition-colors"
-                                >
-                                    »
-                                </Link>
-                            )}
-                        </div>
+                                            dangerouslySetInnerHTML={{ __html: label }}
+                                        />
+                                    )
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
