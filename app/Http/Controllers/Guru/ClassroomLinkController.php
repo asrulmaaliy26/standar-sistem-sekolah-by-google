@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Guru;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClassroomLink;
+use App\Models\Jenjang;
 use App\Models\Rombel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,16 +17,18 @@ class ClassroomLinkController extends Controller
     public function index()
     {
         // Hanya ambil link yang dibuat oleh guru yang sedang login
-        $links = ClassroomLink::with('rombel')
+        $links = ClassroomLink::with('rombel.jenjang')
             ->where('guru_id', auth()->id())
             ->latest()
             ->get();
             
-        $rombels = Rombel::orderBy('name')->get();
+        $rombels = Rombel::with('jenjang')->orderBy('name')->get();
+        $jenjangList = Jenjang::orderBy('nama')->get();
 
         return Inertia::render('Guru/ClassroomLinks/Index', [
             'links' => $links,
-            'rombels' => $rombels
+            'rombels' => $rombels,
+            'jenjangList' => $jenjangList,
         ]);
     }
 
@@ -37,7 +40,13 @@ class ClassroomLinkController extends Controller
         $validated = $request->validate([
             'rombel_id' => 'required|exists:rombels,id',
             'mapel' => 'required|string|max:255',
-            'link' => 'required|url|max:2048',
+            'link' => 'nullable|url|max:2048',
+            'link_uts' => 'nullable|url|max:2048',
+            'uts_mulai' => 'nullable|date',
+            'uts_tutup' => 'nullable|date|after_or_equal:uts_mulai',
+            'link_uas' => 'nullable|url|max:2048',
+            'uas_mulai' => 'nullable|date',
+            'uas_tutup' => 'nullable|date|after_or_equal:uas_mulai',
             'keterangan' => 'nullable|string',
         ]);
 
@@ -45,11 +54,55 @@ class ClassroomLinkController extends Controller
             'guru_id' => auth()->id(),
             'rombel_id' => $validated['rombel_id'],
             'mapel' => $validated['mapel'],
-            'link' => $validated['link'],
+            'link' => $validated['link'] ?? null,
+            'link_uts' => $validated['link_uts'] ?? null,
+            'uts_mulai' => $validated['uts_mulai'] ?? null,
+            'uts_tutup' => $validated['uts_tutup'] ?? null,
+            'link_uas' => $validated['link_uas'] ?? null,
+            'uas_mulai' => $validated['uas_mulai'] ?? null,
+            'uas_tutup' => $validated['uas_tutup'] ?? null,
             'keterangan' => $validated['keterangan'] ?? null,
         ]);
 
         return redirect()->route('guru.classroom-links.index')->with('success', 'Tautan Classroom berhasil ditambahkan.');
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, ClassroomLink $classroomLink)
+    {
+        if ($classroomLink->guru_id !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'rombel_id' => 'required|exists:rombels,id',
+            'mapel' => 'required|string|max:255',
+            'link' => 'nullable|url|max:2048',
+            'link_uts' => 'nullable|url|max:2048',
+            'uts_mulai' => 'nullable|date',
+            'uts_tutup' => 'nullable|date|after_or_equal:uts_mulai',
+            'link_uas' => 'nullable|url|max:2048',
+            'uas_mulai' => 'nullable|date',
+            'uas_tutup' => 'nullable|date|after_or_equal:uas_mulai',
+            'keterangan' => 'nullable|string',
+        ]);
+
+        $classroomLink->update([
+            'rombel_id' => $validated['rombel_id'],
+            'mapel' => $validated['mapel'],
+            'link' => $validated['link'] ?? null,
+            'link_uts' => $validated['link_uts'] ?? null,
+            'uts_mulai' => $validated['uts_mulai'] ?? null,
+            'uts_tutup' => $validated['uts_tutup'] ?? null,
+            'link_uas' => $validated['link_uas'] ?? null,
+            'uas_mulai' => $validated['uas_mulai'] ?? null,
+            'uas_tutup' => $validated['uas_tutup'] ?? null,
+            'keterangan' => $validated['keterangan'] ?? null,
+        ]);
+
+        return redirect()->route('guru.classroom-links.index')->with('success', 'Tautan Classroom berhasil diperbarui.');
     }
 
     /**

@@ -124,7 +124,9 @@ class GuruAkademikController extends Controller
         $validated = $request->validate([
             'rombel_id' => 'required|exists:rombels,id',
             'mapel' => 'required|string|max:255',
-            'link' => 'required|url|max:2000',
+            'link' => 'nullable|url|max:2000',
+            'link_uts' => 'nullable|url|max:2000',
+            'link_uas' => 'nullable|url|max:2000',
             'keterangan' => 'nullable|string|max:1000',
         ]);
 
@@ -132,8 +134,10 @@ class GuruAkademikController extends Controller
             'guru_id' => $guru->id,
             'rombel_id' => $validated['rombel_id'],
             'mapel' => $validated['mapel'],
-            'link' => $validated['link'],
-            'keterangan' => $validated['keterangan'],
+            'link' => $validated['link'] ?? null,
+            'link_uts' => $validated['link_uts'] ?? null,
+            'link_uas' => $validated['link_uas'] ?? null,
+            'keterangan' => $validated['keterangan'] ?? null,
         ]);
 
         return redirect()->back()->with('success', 'Tautan kelas berhasil ditambahkan.');
@@ -147,7 +151,9 @@ class GuruAkademikController extends Controller
         $validated = $request->validate([
             'rombel_id' => 'required|exists:rombels,id',
             'mapel' => 'required|string|max:255',
-            'link' => 'required|url|max:2000',
+            'link' => 'nullable|url|max:2000',
+            'link_uts' => 'nullable|url|max:2000',
+            'link_uas' => 'nullable|url|max:2000',
             'keterangan' => 'nullable|string|max:1000',
         ]);
 
@@ -155,6 +161,8 @@ class GuruAkademikController extends Controller
             'rombel_id' => $validated['rombel_id'],
             'mapel' => $validated['mapel'],
             'link' => $validated['link'],
+            'link_uts' => $validated['link_uts'] ?? null,
+            'link_uas' => $validated['link_uas'] ?? null,
             'keterangan' => $validated['keterangan'],
         ]);
 

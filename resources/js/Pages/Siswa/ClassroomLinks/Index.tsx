@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { BookOpen, ExternalLink, User, GraduationCap, AlertTriangle } from 'lucide-react';
+import { BookOpen, ExternalLink, User, GraduationCap, AlertTriangle, FileText, ClipboardList, CalendarDays } from 'lucide-react';
 
 interface Guru {
     id: number;
@@ -11,7 +11,13 @@ interface Guru {
 interface ClassroomLink {
     id: number;
     mapel: string;
-    link: string;
+    link: string | null;
+    link_uts: string | null;
+    uts_mulai: string | null;
+    uts_tutup: string | null;
+    link_uas: string | null;
+    uas_mulai: string | null;
+    uas_tutup: string | null;
     keterangan: string | null;
     guru: Guru;
     created_at: string;
@@ -141,23 +147,77 @@ export default function Index({ links, rombel }: IndexProps) {
 
                                         {/* Keterangan */}
                                         {link.keterangan && (
-                                            <div className="bg-muted/60 rounded-xl px-4 py-3 mb-5 border border-border/60 text-sm flex-1">
+                                            <div className="bg-muted/60 rounded-xl px-4 py-3 mb-3 border border-border/60 text-sm">
                                                 <p className="text-muted-foreground whitespace-pre-wrap line-clamp-4 leading-relaxed">
                                                     {link.keterangan}
                                                 </p>
                                             </div>
                                         )}
 
+                                        {/* Tanggal UTS / UAS */}
+                                        {(link.uts_mulai || link.uts_tutup || link.uas_mulai || link.uas_tutup) && (
+                                            <div className="flex flex-col gap-1.5 mb-3">
+                                                {(link.uts_mulai || link.uts_tutup) && (
+                                                    <div className="flex items-center gap-1.5 text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 rounded-xl px-3 py-2 border border-amber-200 dark:border-amber-900/50">
+                                                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                                                        <span className="font-semibold">UTS:</span>
+                                                        <span>
+                                                            {link.uts_mulai ? new Date(link.uts_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '?'}
+                                                            {link.uts_tutup ? ` – ${new Date(link.uts_tutup).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {(link.uas_mulai || link.uas_tutup) && (
+                                                    <div className="flex items-center gap-1.5 text-xs bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 rounded-xl px-3 py-2 border border-rose-200 dark:border-rose-900/50">
+                                                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                                                        <span className="font-semibold">UAS:</span>
+                                                        <span>
+                                                            {link.uas_mulai ? new Date(link.uas_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '?'}
+                                                            {link.uas_tutup ? ` – ${new Date(link.uas_tutup).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         {/* Tombol */}
-                                        <a
-                                            href={link.link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className={`mt-auto flex items-center justify-center gap-2 w-full py-3 text-white rounded-xl font-semibold shadow-sm transition-all duration-200 group-hover:shadow-md ${BTN_COLOR[idx]}`}
-                                        >
-                                            <ExternalLink className="w-4 h-4" />
-                                            Gabung ke Kelas
-                                        </a>
+                                        {link.link && (
+                                            <a
+                                                href={link.link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={`mt-auto flex items-center justify-center gap-2 w-full py-3 text-white rounded-xl font-semibold shadow-sm transition-all duration-200 group-hover:shadow-md ${BTN_COLOR[idx]}`}
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                Gabung ke Kelas
+                                            </a>
+                                        )}
+                                        {(link.link_uts || link.link_uas) && (
+                                            <div className="flex gap-2 mt-2">
+                                                {link.link_uts && (
+                                                    <a
+                                                        href={link.link_uts}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200"
+                                                    >
+                                                        <FileText className="w-4 h-4" />
+                                                        Form UTS
+                                                    </a>
+                                                )}
+                                                {link.link_uas && (
+                                                    <a
+                                                        href={link.link_uas}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200"
+                                                    >
+                                                        <ClipboardList className="w-4 h-4" />
+                                                        Form UAS
+                                                    </a>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClassroomLink extends Model
 {
-    protected $fillable = ['guru_id', 'rombel_id', 'mapel', 'link', 'keterangan'];
+    protected $fillable = ['guru_id', 'rombel_id', 'mapel', 'link', 'link_uts', 'uts_mulai', 'uts_tutup', 'link_uas', 'uas_mulai', 'uas_tutup', 'keterangan'];
 
     public function guru()
     {
