@@ -15,10 +15,24 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $search     = $request->input('search', '');
+        $filterRole = $request->input('role', '');
+
         $users = User::with('roles', 'jabatan')
-            ->paginate(10)
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($filterRole, function ($q) use ($filterRole) {
+                $q->whereHas('roles', fn($r) => $r->where('name', $filterRole));
+            })
+            ->latest()
+            ->paginate(25)
+            ->withQueryString()
             ->through(fn($user) => [
                 'id'               => $user->id,
                 'name'             => $user->name,
@@ -29,13 +43,16 @@ class UserController extends Controller
                 'created_at'       => $user->created_at->format('Y-m-d H:i'),
             ]);
 
-        $roles   = Role::all(['id', 'name']);
-        $jabatan = Jabatan::all(['id', 'name']);
+        $roles      = Role::all(['id', 'name']);
+        $jabatan    = Jabatan::all(['id', 'name']);
+        $totalUsers = User::count();
 
         return Inertia::render('Admin/Users/Index', [
-            'users'   => $users,
-            'roles'   => $roles,
-            'jabatan' => $jabatan,
+            'users'      => $users,
+            'roles'      => $roles,
+            'jabatan'    => $jabatan,
+            'totalUsers' => $totalUsers,
+            'filters'    => ['search' => $search, 'role' => $filterRole],
         ]);
     }
 
