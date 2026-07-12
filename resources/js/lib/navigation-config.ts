@@ -14,6 +14,7 @@ import {
     Inbox,
     Send,
     CalendarCheck,
+    ShieldAlert,
 } from 'lucide-react';
 
 /**
@@ -24,6 +25,11 @@ export const commonNavItems: NavItem[] = [
         title: 'Dashboard',
         href: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Kalender Kegiatan',
+        href: '/calendar',
+        icon: Calendar,
     },
     {
         title: 'Pengarsipan',
@@ -64,11 +70,6 @@ export const roleNavigation: Record<string, NavItem[]> = {
             icon: Briefcase,
         },
         {
-            title: 'Kalender Kegiatan',
-            href: '/calendar',
-            icon: Calendar,
-        },
-        {
             title: 'Rekapan Kegiatan',
             href: '/calendar/recap',
             icon: ClipboardList,
@@ -99,6 +100,11 @@ export const roleNavigation: Record<string, NavItem[]> = {
         {
             title: 'Data Guru',
             href: '/admin/guru',
+            icon: Users,
+        },
+        {
+            title: 'Data Siswa',
+            href: '/admin/siswa',
             icon: Users,
         },
         {
@@ -151,11 +157,6 @@ export const roleNavigation: Record<string, NavItem[]> = {
 
     guru: [
         {
-            title: 'Kalender Kegiatan',
-            href: '/calendar',
-            icon: Calendar,
-        },
-        {
             title: 'Pelanggaran',
             href: 'https://docs.google.com/spreadsheets/d/1EleHQr7y9eGg5l3NqnTSUfh8qMpTjM7L-lKDBw9Hql4/edit?usp=sharing',
             icon: ClipboardList,
@@ -165,14 +166,14 @@ export const roleNavigation: Record<string, NavItem[]> = {
             href: '/guru/classroom-links',
             icon: Link,
         },
+        {
+            title: 'Penjaga Ujian',
+            href: '/guru/exam-proctor',
+            icon: ShieldAlert,
+        },
     ],
 
     murid: [
-        {
-            title: 'Kalender Kegiatan',
-            href: '/calendar',
-            icon: Calendar,
-        },
         {
             title: 'Daftar Kelas',
             href: '/siswa/classroom-links',

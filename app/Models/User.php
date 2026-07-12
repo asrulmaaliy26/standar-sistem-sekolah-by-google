@@ -115,13 +115,28 @@ class User extends Authenticatable implements MustVerifyEmail
 
         // Auto-refresh jika expired
         if ($client->isAccessTokenExpired()) {
-            $client->fetchAccessTokenWithRefreshToken($this->google_refresh_token);
-            $newToken = $client->getAccessToken();
+            try {
+                $newToken = $client->fetchAccessTokenWithRefreshToken($this->google_refresh_token);
+                
+                if (isset($newToken['error'])) {
+                    // Jika token invalid (misal: revoked/expired), hapus dari database
+                    \Illuminate\Support\Facades\Log::warning("Google Drive token invalid for user {$this->id}: " . json_encode($newToken));
+                    $this->update([
+                        'google_token' => null,
+                        'google_refresh_token' => null,
+                        'google_token_expires_at' => null,
+                    ]);
+                    return null;
+                }
 
-            $this->update([
-                'google_token'            => $newToken['access_token'],
-                'google_token_expires_at' => now()->addSeconds($newToken['expires_in'] ?? 3600),
-            ]);
+                $this->update([
+                    'google_token'            => $newToken['access_token'],
+                    'google_token_expires_at' => now()->addSeconds($newToken['expires_in'] ?? 3600),
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to refresh Google token for user {$this->id}: " . $e->getMessage());
+                return null;
+            }
         }
 
         return $client;

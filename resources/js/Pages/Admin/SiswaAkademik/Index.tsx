@@ -17,8 +17,8 @@ interface Rombel {
     jenjang?: { id: number; nama: string }
 }
 
-interface GuruIndexProps {
-    gurus: {
+interface SiswaIndexProps {
+    siswa: {
         data: User[]
         links: any
         meta: any
@@ -26,8 +26,8 @@ interface GuruIndexProps {
     rombels: Rombel[]
 }
 
-export default function GuruIndex({ gurus, rombels }: GuruIndexProps) {
-    const [selectedGuru, setSelectedGuru] = useState<User | null>(null)
+export default function SiswaIndex({ siswa, rombels }: SiswaIndexProps) {
+    const [selectedSiswa, setSelectedSiswa] = useState<User | null>(null)
     const [perPage, setPerPage] = useState<number>(10)
     const { data, setData, post, processing, reset } = useForm({
         rombel_id: ''
@@ -44,42 +44,42 @@ export default function GuruIndex({ gurus, rombels }: GuruIndexProps) {
     const handlePerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const value = Number(e.target.value)
         setPerPage(value)
-        router.get(route('admin.guru.index'), { per_page: value }, { preserveState: true, replace: true })
+        router.get(route('admin.siswa.index'), { per_page: value }, { preserveState: true, replace: true })
     }
 
-    const handleOpenModal = (guru: User) => {
-        setSelectedGuru(guru)
-        setData('rombel_id', guru.rombel_id ? guru.rombel_id.toString() : '')
+    const handleOpenModal = (siswa: User) => {
+        setSelectedSiswa(siswa)
+        setData('rombel_id', siswa.rombel_id ? siswa.rombel_id.toString() : '')
     }
 
     const handleCloseModal = () => {
-        setSelectedGuru(null)
+        setSelectedSiswa(null)
         reset()
     }
 
     const submitAssign = (e: React.FormEvent) => {
         e.preventDefault()
-        if (selectedGuru) {
-            post(route('admin.guru.assign-rombel', selectedGuru.id), {
+        if (selectedSiswa) {
+            post(route('admin.siswa.assign-rombel', selectedSiswa.id), {
                 onSuccess: () => handleCloseModal(),
             })
         }
     }
 
-    const submitRemove = (guru: User) => {
-        if (confirm(`Hapus kelas untuk guru ${guru.name}?`)) {
-            router.post(route('admin.guru.remove-rombel', guru.id))
+    const submitRemove = (siswa: User) => {
+        if (confirm(`Hapus kelas untuk siswa ${siswa.name}?`)) {
+            router.post(route('admin.siswa.remove-rombel', siswa.id))
         }
     }
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Data Guru', href: '/admin/guru' }]}>
-            <Head title="Data Guru" />
+        <AppLayout breadcrumbs={[{ title: 'Data siswa', href: '/admin/siswa' }]}>
+            <Head title="Data siswa" />
 
             <div className="p-6">
                 <div className="mb-6 flex justify-between items-center">
                     <h1 className="text-2xl font-bold tracking-tight">
-                        Data Guru
+                        Data siswa
                     </h1>
                     <select
                         value={perPage}
@@ -132,18 +132,18 @@ export default function GuruIndex({ gurus, rombels }: GuruIndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border bg-card">
-                                {gurus.data.map((guru) => (
-                                    <tr key={guru.id}>
+                                {siswa.data.map((user) => (
+                                    <tr key={user.id}>
                                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-foreground sm:pl-6">
-                                            {guru.name}
+                                            {user.name}
                                         </td>
                                         <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
-                                            {guru.email}
+                                            {user.email}
                                         </td>
                                         <td className="whitespace-nowrap px-3 py-4 text-sm">
                                             <div className="flex flex-wrap gap-1.5">
-                                                {guru.jabatan && guru.jabatan.length > 0
-                                                    ? guru.jabatan.map((j) => (
+                                                {user.jabatan && user.jabatan.length > 0
+                                                    ? user.jabatan.map((j) => (
                                                         <span
                                                             key={j.id}
                                                             className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 capitalize"
@@ -156,9 +156,9 @@ export default function GuruIndex({ gurus, rombels }: GuruIndexProps) {
                                             </div>
                                         </td>
                                         <td className="whitespace-nowrap px-3 py-4 text-sm">
-                                            {guru.rombel_name ? (
+                                            {user.rombel_name ? (
                                                 <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                                    {guru.rombel_name}
+                                                    {user.rombel_name}
                                                 </span>
                                             ) : (
                                                 <span className="text-muted-foreground text-xs">—</span>
@@ -166,21 +166,15 @@ export default function GuruIndex({ gurus, rombels }: GuruIndexProps) {
                                         </td>
                                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                             <div className="flex justify-end items-center gap-3">
-                                                <Link
-                                                    href={route('admin.guru.show', guru.id)}
-                                                    className="text-muted-foreground hover:text-foreground"
-                                                >
-                                                    Detail
-                                                </Link>
                                                 <button
-                                                    onClick={() => handleOpenModal(guru)}
+                                                    onClick={() => handleOpenModal(user)}
                                                     className="text-primary hover:text-primary/80"
                                                 >
                                                     Set Kelas
                                                 </button>
-                                                {guru.rombel_id && (
+                                                {user.rombel_id && (
                                                     <button
-                                                        onClick={() => submitRemove(guru)}
+                                                        onClick={() => submitRemove(user)}
                                                         className="text-red-600 hover:text-red-800"
                                                     >
                                                         Hapus Kelas
@@ -195,22 +189,22 @@ export default function GuruIndex({ gurus, rombels }: GuruIndexProps) {
                     </div>
 
                     {/* Pagination */}
-                    {gurus.meta && gurus.meta.last_page > 1 && (
+                    {siswa.meta && siswa.meta.last_page > 1 && (
                         <div className="mt-6 flex justify-between items-center">
-                            {gurus.links?.prev && (
+                            {siswa.links?.prev && (
                                 <Link
-                                    href={gurus.links.prev}
+                                    href={siswa.links.prev}
                                     className="text-primary hover:text-primary/80"
                                 >
                                     ← Previous
                                 </Link>
                             )}
                             <span className="text-muted-foreground">
-                                Page {gurus.meta.current_page} of {gurus.meta.last_page}
+                                Page {siswa.meta.current_page} of {siswa.meta.last_page}
                             </span>
-                            {gurus.links?.next && (
+                            {siswa.links?.next && (
                                 <Link
-                                    href={gurus.links.next}
+                                    href={siswa.links.next}
                                     className="text-primary hover:text-primary/80"
                                 >
                                     Next →
@@ -222,10 +216,10 @@ export default function GuruIndex({ gurus, rombels }: GuruIndexProps) {
             </div>
 
             {/* Set Rombel Modal */}
-            {selectedGuru && (
+            {selectedSiswa && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="w-full max-w-md rounded-lg bg-background p-6 shadow-xl border border-border">
-                        <h2 className="text-lg font-semibold mb-4">Set Kelas untuk {selectedGuru.name}</h2>
+                        <h2 className="text-lg font-semibold mb-4">Set Kelas untuk {selectedSiswa.name}</h2>
                         
                         <form onSubmit={submitAssign}>
                             <div className="mb-4">

@@ -25,11 +25,14 @@ class SuratMasukController extends Controller
             $query->where('status', $request->status);
         }
 
-        $suratMasuk = $query->latest()->paginate(10)->withQueryString();
+        $perPageReq = (int) $request->input('per_page', 10);
+        $perPage = $perPageReq === 0 ? PHP_INT_MAX : max(1, $perPageReq);
+
+        $suratMasuk = $query->latest()->paginate($perPage)->withQueryString();
 
         return Inertia::render('Admin/Persuratan/SuratMasuk/Index', [
             'suratMasuk' => $suratMasuk,
-            'filters' => $request->only(['search', 'status']),
+            'filters' => array_merge($request->only(['search', 'status']), ['per_page' => $perPageReq]),
         ]);
     }
 

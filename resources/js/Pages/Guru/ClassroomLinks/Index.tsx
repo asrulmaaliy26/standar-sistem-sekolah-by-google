@@ -16,9 +16,11 @@ interface ClassroomLink {
     link_uts: string | null;
     uts_mulai: string | null;
     uts_tutup: string | null;
+    uts_durasi: number | null;
     link_uas: string | null;
     uas_mulai: string | null;
     uas_tutup: string | null;
+    uas_durasi: number | null;
     keterangan: string | null;
     rombel: Rombel;
     created_at: string;
@@ -136,6 +138,11 @@ function LinkFormFields({ data, setData, errors, rombels, jenjangList, isEdit, s
                         {errors.uts_tutup && <p className="text-red-500 text-xs mt-1">{errors.uts_tutup}</p>}
                     </div>
                 </div>
+                <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Durasi Ujian (Menit)</label>
+                    <input type="number" min="1" value={data.uts_durasi} onChange={e => setData('uts_durasi', e.target.value)} className={inputCls} placeholder="Contoh: 90" />
+                    {errors.uts_durasi && <p className="text-red-500 text-xs mt-1">{errors.uts_durasi}</p>}
+                </div>
             </div>
 
             {/* ── UAS ── */}
@@ -165,6 +172,11 @@ function LinkFormFields({ data, setData, errors, rombels, jenjangList, isEdit, s
                         <input type="date" value={data.uas_tutup} onChange={e => setData('uas_tutup', e.target.value)} className={inputCls} />
                         {errors.uas_tutup && <p className="text-red-500 text-xs mt-1">{errors.uas_tutup}</p>}
                     </div>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Durasi Ujian (Menit)</label>
+                    <input type="number" min="1" value={data.uas_durasi} onChange={e => setData('uas_durasi', e.target.value)} className={inputCls} placeholder="Contoh: 90" />
+                    {errors.uas_durasi && <p className="text-red-500 text-xs mt-1">{errors.uas_durasi}</p>}
                 </div>
             </div>
 
@@ -205,7 +217,7 @@ function Modal({ open, onClose, title, subtitle, icon, accentClass, children }: 
 }
 
 // ── Main Page ─────────────────────────────────────────────────
-const emptyForm = { rombel_id: '', mapel: '', link: '', link_uts: '', uts_mulai: '', uts_tutup: '', link_uas: '', uas_mulai: '', uas_tutup: '', keterangan: '' };
+const emptyForm = { rombel_id: '', mapel: '', link: '', link_uts: '', uts_mulai: '', uts_tutup: '', uts_durasi: '', link_uas: '', uas_mulai: '', uas_tutup: '', uas_durasi: '', keterangan: '' };
 
 export default function Index({ links, rombels, jenjangList }: IndexProps) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -235,9 +247,11 @@ export default function Index({ links, rombels, jenjangList }: IndexProps) {
             link_uts:  link.link_uts ?? '',
             uts_mulai: link.uts_mulai ?? '',
             uts_tutup: link.uts_tutup ?? '',
+            uts_durasi: link.uts_durasi ? String(link.uts_durasi) : '',
             link_uas:  link.link_uas ?? '',
             uas_mulai: link.uas_mulai ?? '',
             uas_tutup: link.uas_tutup ?? '',
+            uas_durasi: link.uas_durasi ? String(link.uas_durasi) : '',
             keterangan: link.keterangan ?? '',
         });
     };

@@ -101,10 +101,10 @@ class CalendarController extends Controller
 
         $user    = Auth::user();
         $isAdmin = $user->hasRole('superadmin');
-        $isGuru  = $user->hasRole('guru');
+        $isMurid = $user->hasRole('murid') && !$isAdmin; // murid yang bukan superadmin
 
-        if (!$isAdmin && !$isGuru) {
-            return response()->json(['status' => 'error', 'message' => 'Tidak diizinkan membuat kegiatan.'], 403);
+        if ($isMurid) {
+            return response()->json(['status' => 'error', 'message' => 'Murid tidak diizinkan membuat kegiatan.'], 403);
         }
 
         $event = CalendarEvent::create([

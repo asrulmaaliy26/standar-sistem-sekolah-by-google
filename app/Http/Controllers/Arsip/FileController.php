@@ -26,8 +26,25 @@ class FileController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'color', 'description']);
 
-        $query = ArsipFile::with(['kategori:id,name,color,slug', 'uploader:id,name'])
+        $query = ArsipFile::with(['kategori:id,name,color,slug', 'uploader:id,name', 'googleDriveAccount:id,email'])
             ->orderBy('created_at', 'desc');
+
+        // Filter Visibility
+        if ($user->hasRole('superadmin')) {
+            // Superadmin melihat semua file
+        } else if ($user->hasRole('guru')) {
+            // Guru melihat file public, guru, dan private miliknya sendiri
+            $query->where(function ($q) use ($user) {
+                $q->whereIn('visibility', ['public', 'guru'])
+                  ->orWhere(function ($q2) use ($user) {
+                      $q2->where('visibility', 'private')
+                         ->where('uploaded_by', $user->id);
+                  });
+            });
+        } else {
+            // Murid dan lainnya hanya melihat file public
+            $query->where('visibility', 'public');
+        }
 
         if ($request->filled('kategori')) {
             $query->whereHas('kategori', fn($q) => $q->where('slug', $request->kategori));
@@ -79,12 +96,15 @@ class FileController extends Controller
             'uploader'       => $f->uploader?->name,
             'uploader_id'    => $f->uploaded_by,
             'is_owner'       => $f->uploaded_by === $user->id,
+            'visibility'     => $f->visibility,
+            'drive_account'  => $f->googleDriveAccount ? $f->googleDriveAccount->email : null,
             'created_at'     => $f->created_at->format('Y-m-d H:i'),
         ]);
 
+        $driveAccounts = \App\Models\GoogleDriveAccount::where('is_active', true)->get(['id', 'email', 'name']);
+        
         $systemUser = \App\Models\User::getSystemGoogleDriveUser();
-        $hasDriveAccess = $systemUser !== null;
-        $driveOwnerEmail = $systemUser ? $systemUser->email : null;
+        $hasDriveAccess = $driveAccounts->count() > 0 || ($systemUser && $systemUser->getGoogleClient() !== null);
 
         $rombels = Rombel::orderBy('name')->get(['id', 'name']);
 
@@ -94,7 +114,7 @@ class FileController extends Controller
             'availableYears' => $availableYears,
             'rombels'        => $rombels,
             'hasDriveAccess' => $hasDriveAccess,
-            'driveOwnerEmail'=> $driveOwnerEmail,
+            'driveAccounts'  => $driveAccounts,
             'activeKategori' => $request->kategori,
             'activeTahun'    => $tahun,
             'activeBulan'    => $request->bulan,
@@ -110,8 +130,9 @@ class FileController extends Controller
     {
         $user = $request->user();
 
-        if (! \App\Models\User::getSystemGoogleDriveUser()) {
-            return back()->with('error', 'Sistem belum dikonfigurasi. Admin perlu mengizinkan akses Google Drive.');
+        $driveAccounts = \App\Models\GoogleDriveAccount::where('is_active', true)->get();
+        if ($driveAccounts->isEmpty() && !\App\Models\User::getSystemGoogleDriveUser()) {
+            return back()->with('error', 'Sistem belum dikonfigurasi. Admin perlu menautkan akun Google Drive terlebih dahulu.');
         }
 
         $validated = $request->validate([
@@ -120,6 +141,8 @@ class FileController extends Controller
             'display_name'      => 'nullable|string|max:255',
             'description'       => 'nullable|string|max:500',
             'path'              => 'nullable|string|max:255',
+            'visibility'        => 'required|in:public,guru,private',
+            'google_drive_account_id' => 'nullable|exists:google_drive_accounts,id',
         ]);
 
         $file     = $request->file('file');
@@ -127,25 +150,25 @@ class FileController extends Controller
 
         $displayName = $validated['display_name'] ?? $file->getClientOriginalName();
 
-        // Bangun path: tahun / kelas / nama_user
+        // Bangun path: Tahun / Kategori
         $tahun = date('Y');
-        $user->loadMissing('rombel');
-        $kelas = $user->rombel ? str_replace('/', '-', $user->rombel->name) : 'Tanpa Kelas';
-        // Hapus karakter slash dari nama user untuk menghindari pembuatan folder berlebih
-        $namaUser = str_replace('/', '-', $user->name);
+        $kategoriName = str_replace('/', '-', $kategori->name);
         
-        $basePath = "{$tahun}/{$kelas}/{$namaUser}";
+        $basePath = "{$tahun}/{$kategoriName}";
         
         // Jika ada custom path tambahan dari input user, taruh di dalamnya
         $finalPath = !empty($validated['path']) ? $basePath . '/' . trim($validated['path'], '/ ') : $basePath;
 
         // Upload ke Google Drive
+        $driveAccount = !empty($validated['google_drive_account_id']) ? \App\Models\GoogleDriveAccount::find($validated['google_drive_account_id']) : null;
+        
         $driveResult = $this->driveService->uploadFile(
             $user,
             $kategori->name,
             $file,
             $displayName,
             $finalPath,
+            $driveAccount
         );
 
         if (! $driveResult) {
@@ -165,6 +188,8 @@ class FileController extends Controller
             'drive_folder_id'   => $driveResult['drive_folder_id'],
             'description'       => $validated['description'] ?? null,
             'path'              => $finalPath,
+            'visibility'        => $validated['visibility'],
+            'google_drive_account_id' => $validated['google_drive_account_id'] ?? null,
         ]);
 
         return back()->with('success', 'File "' . $displayName . '" berhasil diupload ke Google Drive.');

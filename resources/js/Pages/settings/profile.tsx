@@ -58,7 +58,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 required
-                                autoComplete="name"
+                                autoComplete="off"
                                 placeholder="Full name"
                             />
 
@@ -75,7 +75,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
                                 required
-                                autoComplete="username"
+                                autoComplete="off"
                                 placeholder="Email address"
                             />
 

@@ -23,6 +23,22 @@ interface ShowProps {
 }
 
 export default function Show({ role, users }: ShowProps) {
+    const [perPage, setPerPage] = React.useState<number>(10)
+
+    React.useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search)
+        const perPageParam = urlParams.get('per_page')
+        if (perPageParam !== null) {
+            setPerPage(Number(perPageParam))
+        }
+    }, [])
+
+    const handlePerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = Number(e.target.value)
+        setPerPage(value)
+        router.get(route('admin.roles.show', role.id), { per_page: value }, { preserveState: true, replace: true })
+    }
+
     return (
         <AppLayout breadcrumbs={[
             { title: 'Manajemen Role', href: '/admin/roles' },
@@ -63,9 +79,21 @@ export default function Show({ role, users }: ShowProps) {
                 {/* Users with this role */}
                 <div className="bg-card shadow sm:rounded-lg border border-border">
                     <div className="px-4 py-5 sm:p-6">
-                        <h2 className="mb-4 text-lg font-medium text-foreground">
-                            Users with this role ({users.meta?.total || 0})
-                        </h2>
+                        <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <h2 className="text-lg font-medium text-foreground">
+                                Users with this role ({users.meta?.total || 0})
+                            </h2>
+                            <select
+                                value={perPage}
+                                onChange={handlePerPageChange}
+                                className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-36"
+                            >
+                                <option value={10}>10 / halaman</option>
+                                <option value={25}>25 / halaman</option>
+                                <option value={50}>50 / halaman</option>
+                                <option value={0}>Tampilkan Semua</option>
+                            </select>
+                        </div>
 
                         {users.data.length > 0 ? (
                             <>

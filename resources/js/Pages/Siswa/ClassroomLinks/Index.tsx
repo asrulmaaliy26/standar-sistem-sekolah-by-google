@@ -1,7 +1,7 @@
 import React from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { BookOpen, ExternalLink, User, GraduationCap, AlertTriangle, FileText, ClipboardList, CalendarDays } from 'lucide-react';
+import { BookOpen, ExternalLink, User, GraduationCap, AlertTriangle, FileText, ClipboardList, CalendarDays, CheckCircle2 } from 'lucide-react';
 
 interface Guru {
     id: number;
@@ -23,9 +23,16 @@ interface ClassroomLink {
     created_at: string;
 }
 
+interface ExamSessionStatus {
+    classroom_link_id: number;
+    exam_type: 'uts' | 'uas';
+    status: 'active' | 'blocked' | 'finished';
+}
+
 interface IndexProps {
     links: ClassroomLink[];
     rombel: string | null;
+    examSessions: ExamSessionStatus[];
 }
 
 // Warna gradient per-kartu (siklus)
@@ -56,7 +63,15 @@ const BTN_COLOR = [
     'bg-pink-600 hover:bg-pink-700',
 ];
 
-export default function Index({ links, rombel }: IndexProps) {
+const formatUrl = (url: string | null) => {
+    if (!url) return '#';
+    if (!url.match(/^https?:\/\//i)) {
+        return `https://${url}`;
+    }
+    return url;
+};
+
+export default function Index({ links, rombel, examSessions = [] }: IndexProps) {
     return (
         <AppLayout breadcrumbs={[
             { title: 'Daftar Kelas', href: '/siswa/classroom-links' },
@@ -120,6 +135,11 @@ export default function Index({ links, rombel }: IndexProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                         {links.map((link, i) => {
                             const idx = i % GRADIENTS.length;
+                            const utsSession = examSessions.find(s => s.classroom_link_id === link.id && s.exam_type === 'uts');
+                            const uasSession = examSessions.find(s => s.classroom_link_id === link.id && s.exam_type === 'uas');
+                            const isUtsFinished = utsSession?.status === 'finished';
+                            const isUasFinished = uasSession?.status === 'finished';
+                            
                             return (
                                 <div
                                     key={link.id}
@@ -147,7 +167,7 @@ export default function Index({ links, rombel }: IndexProps) {
 
                                         {/* Keterangan */}
                                         {link.keterangan && (
-                                            <div className="bg-muted/60 rounded-xl px-4 py-3 mb-3 border border-border/60 text-sm">
+                                            <div className="bg-muted/60 rounded-xl px-4 py-3 mb-3 border border-border/60 text-sm mt-auto">
                                                 <p className="text-muted-foreground whitespace-pre-wrap line-clamp-4 leading-relaxed">
                                                     {link.keterangan}
                                                 </p>
@@ -156,7 +176,7 @@ export default function Index({ links, rombel }: IndexProps) {
 
                                         {/* Tanggal UTS / UAS */}
                                         {(link.uts_mulai || link.uts_tutup || link.uas_mulai || link.uas_tutup) && (
-                                            <div className="flex flex-col gap-1.5 mb-3">
+                                            <div className="flex flex-col gap-1.5 mb-3 mt-auto">
                                                 {(link.uts_mulai || link.uts_tutup) && (
                                                     <div className="flex items-center gap-1.5 text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 rounded-xl px-3 py-2 border border-amber-200 dark:border-amber-900/50">
                                                         <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
@@ -181,40 +201,64 @@ export default function Index({ links, rombel }: IndexProps) {
                                         )}
 
                                         {/* Tombol */}
-                                        {link.link && (
-                                            <a
-                                                href={link.link}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className={`mt-auto flex items-center justify-center gap-2 w-full py-3 text-white rounded-xl font-semibold shadow-sm transition-all duration-200 group-hover:shadow-md ${BTN_COLOR[idx]}`}
-                                            >
-                                                <ExternalLink className="w-4 h-4" />
-                                                Gabung ke Kelas
-                                            </a>
-                                        )}
-                                        {(link.link_uts || link.link_uas) && (
-                                            <div className="flex gap-2 mt-2">
-                                                {link.link_uts && (
+                                        {(!link.link && !link.link_uts && !link.link_uas && !link.uts_mulai && !link.uts_tutup && !link.uas_mulai && !link.uas_tutup && !link.keterangan) ? (
+                                            <div className="mt-auto flex flex-col items-center justify-center py-4 bg-muted/30 rounded-xl border border-dashed border-border/50">
+                                                <span className="text-xs text-muted-foreground text-center px-4">Belum ada tautan yang ditambahkan oleh guru</span>
+                                            </div>
+                                        ) : (
+                                            <div className={!link.keterangan && !link.uts_mulai && !link.uts_tutup && !link.uas_mulai && !link.uas_tutup ? 'mt-auto' : ''}>
+                                                {link.link && (
                                                     <a
-                                                        href={link.link_uts}
+                                                        href={formatUrl(link.link)}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200"
+                                                        className={`flex items-center justify-center gap-2 w-full py-3 text-white rounded-xl font-semibold shadow-sm transition-all duration-200 group-hover:shadow-md ${BTN_COLOR[idx]}`}
                                                     >
-                                                        <FileText className="w-4 h-4" />
-                                                        Form UTS
+                                                        <ExternalLink className="w-4 h-4" />
+                                                        Gabung ke Kelas
                                                     </a>
                                                 )}
-                                                {link.link_uas && (
-                                                    <a
-                                                        href={link.link_uas}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200"
-                                                    >
-                                                        <ClipboardList className="w-4 h-4" />
-                                                        Form UAS
-                                                    </a>
+                                                {(link.link_uts || link.link_uas) && (
+                                                    <div className={`flex gap-2 ${link.link ? 'mt-2' : ''}`}>
+                                                        {link.link_uts && (
+                                                            isUtsFinished ? (
+                                                                <button
+                                                                    disabled
+                                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-400 rounded-xl font-semibold text-sm cursor-not-allowed border border-gray-200"
+                                                                >
+                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                                    UTS Selesai
+                                                                </button>
+                                                            ) : (
+                                                                <Link
+                                                                    href={route('siswa.exam.play', { link: link.id, type: 'uts' })}
+                                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200"
+                                                                >
+                                                                    <FileText className="w-4 h-4" />
+                                                                    Ujian UTS
+                                                                </Link>
+                                                            )
+                                                        )}
+                                                        {link.link_uas && (
+                                                            isUasFinished ? (
+                                                                <button
+                                                                    disabled
+                                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-400 rounded-xl font-semibold text-sm cursor-not-allowed border border-gray-200"
+                                                                >
+                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                                    UAS Selesai
+                                                                </button>
+                                                            ) : (
+                                                                <Link
+                                                                    href={route('siswa.exam.play', { link: link.id, type: 'uas' })}
+                                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200"
+                                                                >
+                                                                    <ClipboardList className="w-4 h-4" />
+                                                                    Ujian UAS
+                                                                </Link>
+                                                            )
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
                                         )}

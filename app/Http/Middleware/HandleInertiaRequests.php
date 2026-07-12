@@ -88,6 +88,9 @@ class HandleInertiaRequests extends Middleware
                 'success' => session('success'),
                 'error'   => session('error'),
             ],
+            'settings' => [
+                'kartu_santri_aktif' => \App\Models\AppSetting::kartuSantriAktif(),
+            ],
         ];
     }
 }

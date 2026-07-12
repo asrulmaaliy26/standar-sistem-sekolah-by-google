@@ -12,10 +12,14 @@ class RoleController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $perPageReq = (int) $request->input('per_page', 10);
+        $perPage = $perPageReq === 0 ? PHP_INT_MAX : max(1, $perPageReq);
+
         $roles = Role::withCount('users')
-            ->paginate(10)
+            ->paginate($perPage)
+            ->withQueryString()
             ->through(fn($role) => [
                 'id' => $role->id,
                 'name' => $role->name,
@@ -26,6 +30,7 @@ class RoleController extends Controller
 
         return Inertia::render('Admin/Roles/Index', [
             'roles' => $roles,
+            'filters' => ['per_page' => $perPageReq],
         ]);
     }
 
@@ -55,9 +60,12 @@ class RoleController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Role $role)
+    public function show(Request $request, Role $role)
     {
-        $users = $role->users()->paginate(10);
+        $perPageReq = (int) $request->input('per_page', 10);
+        $perPage = $perPageReq === 0 ? PHP_INT_MAX : max(1, $perPageReq);
+
+        $users = $role->users()->paginate($perPage)->withQueryString();
 
         return Inertia::render('Admin/Roles/Show', [
             'role' => [
@@ -67,6 +75,7 @@ class RoleController extends Controller
                 'created_at' => $role->created_at->format('Y-m-d H:i'),
             ],
             'users' => $users,
+            'filters' => ['per_page' => $perPageReq],
         ]);
     }
 

@@ -20,21 +20,53 @@ class GoogleAuthController extends Controller
                 'email',
             ]);
 
-        // Hanya tambahkan scope Drive dan offline access JIKA diminta (oleh admin)
-        if ($request->query('with_drive') == '1') {
+        if ($request->query('link_drive') == '1') {
+            $request->session()->put('google_auth_action', 'link_drive');
             $driver->scopes(['https://www.googleapis.com/auth/drive.file'])
                    ->with(['access_type' => 'offline', 'prompt' => 'consent']);
+        } else {
+            $request->session()->forget('google_auth_action');
+            if ($request->query('with_drive') == '1') {
+                $driver->scopes(['https://www.googleapis.com/auth/drive.file'])
+                       ->with(['access_type' => 'offline', 'prompt' => 'consent']);
+            }
         }
 
         return $driver->redirect();
     }
 
-    public function callback()
+    public function callback(Request $request)
     {
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (Throwable $e) {
             return redirect()->route('login')->with('error', 'Login dengan Google gagal. Silakan coba lagi.');
+        }
+
+        $action = $request->session()->pull('google_auth_action');
+
+        if ($action === 'link_drive') {
+            if (!Auth::check() || !Auth::user()->hasRole('superadmin')) {
+                return redirect('/dashboard')->with('error', 'Akses ditolak.');
+            }
+
+            $account = \App\Models\GoogleDriveAccount::where('email', $googleUser->email)->first();
+            if ($account) {
+                $account->update([
+                    'name' => $googleUser->name,
+                    'refresh_token' => $googleUser->refreshToken ?? $account->refresh_token,
+                    'is_active' => true,
+                ]);
+            } else {
+                \App\Models\GoogleDriveAccount::create([
+                    'email' => $googleUser->email,
+                    'name' => $googleUser->name,
+                    'refresh_token' => $googleUser->refreshToken ?? '',
+                    'is_active' => true,
+                ]);
+            }
+
+            return redirect()->route('settings.drive')->with('success', 'Akun Google Drive berhasil ditautkan!');
         }
 
         // Cari atau buat user berdasarkan email

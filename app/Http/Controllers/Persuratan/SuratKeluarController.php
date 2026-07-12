@@ -25,11 +25,14 @@ class SuratKeluarController extends Controller
             $query->where('status', $request->status);
         }
 
-        $suratKeluar = $query->latest()->paginate(10)->withQueryString();
+        $perPageReq = (int) $request->input('per_page', 10);
+        $perPage = $perPageReq === 0 ? PHP_INT_MAX : max(1, $perPageReq);
+
+        $suratKeluar = $query->latest()->paginate($perPage)->withQueryString();
 
         return Inertia::render('Admin/Persuratan/SuratKeluar/Index', [
             'suratKeluar' => $suratKeluar,
-            'filters' => $request->only(['search', 'status']),
+            'filters' => array_merge($request->only(['search', 'status']), ['per_page' => $perPageReq]),
         ]);
     }
 

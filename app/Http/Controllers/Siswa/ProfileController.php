@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Siswa;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use Illuminate\Http\Request;
 
 class ProfileController extends Controller
@@ -33,6 +34,11 @@ class ProfileController extends Controller
      */
     public function verifyCard(Request $request)
     {
+        // Cek apakah fitur Verifikasi Kartu Santri sedang aktif
+        if (!AppSetting::kartuSantriAktif()) {
+            return redirect()->back()->with('error', 'Fitur Verifikasi Kartu Santri sedang dinonaktifkan oleh admin.');
+        }
+
         $request->validate([
             'kartu' => 'required|image|max:10240',
         ]);
@@ -42,7 +48,7 @@ class ProfileController extends Controller
         $path = $file->storeAs('kartu_santri', $filename, 'public');
 
         auth()->user()->update([
-            'is_verified' => true,
+            'is_verified'      => true,
             'kartu_santri_path' => $path,
         ]);
 

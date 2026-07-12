@@ -5,6 +5,8 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\JenjangController;
 use App\Http\Controllers\Admin\GuruAkademikController;
+use App\Http\Controllers\Admin\AppSettingController;
+use App\Models\AppSetting;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -16,9 +18,12 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/dashboard', function () {
         return Inertia::render('Admin/Dashboard', [
             'stats' => [
-                'total_users' => \App\Models\User::count(),
-                'total_roles' => \App\Models\Role::count(),
+                'total_users'  => \App\Models\User::count(),
+                'total_roles'  => \App\Models\Role::count(),
                 'total_admins' => \App\Models\User::whereHas('roles', fn($q) => $q->where('name', 'superadmin'))->count(),
+            ],
+            'settings' => [
+                'kartu_santri_aktif' => AppSetting::kartuSantriAktif(),
             ],
         ]);
     })->name('dashboard');
@@ -40,6 +45,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::resource('jabatan', \App\Http\Controllers\Admin\JabatanController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->names('jabatan');
+
+    // App Settings
+    Route::post('settings/kartu-santri-toggle', [AppSettingController::class, 'toggleKartuSantri'])
+        ->name('settings.kartu-santri-toggle');
 
 });
 
@@ -64,6 +73,11 @@ Route::middleware(['auth', 'verified', 'admin_akademik'])->prefix('admin')->name
     Route::post('guru/{guru}/links', [GuruAkademikController::class, 'storeLink'])->name('guru.store-link');
     Route::put('guru/links/{link}', [GuruAkademikController::class, 'updateLink'])->name('guru.update-link');
     Route::delete('guru/links/{link}', [GuruAkademikController::class, 'destroyLink'])->name('guru.destroy-link');
+
+    // Data Siswa
+    Route::get('siswa', [\App\Http\Controllers\Admin\SiswaAkademikController::class, 'index'])->name('siswa.index');
+    Route::post('siswa/{siswa}/assign-rombel', [\App\Http\Controllers\Admin\SiswaAkademikController::class, 'assignRombel'])->name('siswa.assign-rombel');
+    Route::post('siswa/{siswa}/remove-rombel', [\App\Http\Controllers\Admin\SiswaAkademikController::class, 'removeRombel'])->name('siswa.remove-rombel');
 });
 
 /**

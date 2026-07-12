@@ -18,7 +18,8 @@ import {
     FileVideo,
     FileCode,
     Filter,
-    Pencil
+    Pencil,
+    ExternalLink
 } from 'lucide-react'
 
 // --- Interfaces ---
@@ -64,8 +65,9 @@ interface ArsipIndexProps {
     activeTahun: string | null
     activeBulan: string | null
     activeKelas: string | null
+    activeKelas: string | null
     canManageKategori: boolean
-    driveOwnerEmail?: string | null
+    driveAccounts: { id: number, email: string, name: string | null }[]
     flash?: { success?: string; error?: string }
 }
 
@@ -85,9 +87,11 @@ const getFileIcon = (mimeType: string) => {
 
 function UploadModal({
     kategoriList,
+    driveAccounts,
     onClose,
 }: {
     kategoriList: Kategori[]
+    driveAccounts: { id: number, email: string, name: string | null }[]
     onClose: () => void
 }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -96,10 +100,12 @@ function UploadModal({
         display_name: '',
         path: '',
         description: '',
+        visibility: 'public',
+        google_drive_account_id: driveAccounts.length > 0 ? driveAccounts[0].id : '',
     })
 
     const { props } = usePage<any>()
-    const isAdmin = props.auth.user.is_admin
+    const isAdmin = props.auth.user.roles.includes('superadmin') || props.auth.user.is_admin
 
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -180,6 +186,38 @@ function UploadModal({
                             {errors.path && <p className="text-xs text-destructive mt-1">{errors.path}</p>}
                         </div>
                     )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1.5">Visibilitas</label>
+                            <select
+                                value={data.visibility}
+                                onChange={(e) => setData('visibility', e.target.value)}
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring"
+                                required
+                            >
+                                <option value="public">Publik (Semua Orang)</option>
+                                <option value="guru">Internal Guru</option>
+                                <option value="private">Private (Hanya Saya)</option>
+                            </select>
+                            {errors.visibility && <p className="text-xs text-destructive mt-1">{errors.visibility}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1.5">Simpan ke Drive</label>
+                            <select
+                                value={data.google_drive_account_id}
+                                onChange={(e) => setData('google_drive_account_id', e.target.value)}
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring"
+                                required
+                            >
+                                {driveAccounts.length === 0 && <option value="" disabled>-- Tidak Ada Akun Drive --</option>}
+                                {driveAccounts.map(acc => (
+                                    <option key={acc.id} value={acc.id}>{acc.email}</option>
+                                ))}
+                            </select>
+                            {errors.google_drive_account_id && <p className="text-xs text-destructive mt-1">{errors.google_drive_account_id}</p>}
+                        </div>
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium mb-1.5">Deskripsi (Opsional)</label>
@@ -299,8 +337,13 @@ function KategoriModal({
 
 // --- Main Page ---
 
-export default function ArsipIndex({ files, kategoriList, availableYears, rombels, hasDriveAccess, driveOwnerEmail, activeKategori, activeTahun, activeBulan, activeKelas, canManageKategori }: ArsipIndexProps) {
-    const { flash } = usePage().props as any
+export default function ArsipIndex({ files, kategoriList, availableYears, rombels, hasDriveAccess, driveAccounts, activeKategori, activeTahun, activeBulan, activeKelas, canManageKategori }: ArsipIndexProps) {
+    const { props } = usePage<any>()
+    const { flash } = props
+    const activeMode = props.auth.user.active_mode
+    const isMurid = activeMode?.value === 'murid' || (props.auth.user.roles?.includes('murid') && props.auth.user.roles?.length === 1)
+    const isSuperadmin = props.auth.user.roles?.includes('superadmin') || props.auth.user.is_admin
+    
     const [showUploadModal, setShowUploadModal] = useState(false)
     const [showKategoriModal, setShowKategoriModal] = useState(false)
     const [editingKategori, setEditingKategori] = useState<Kategori | null>(null)
@@ -365,9 +408,9 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
                         </h1>
                         <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
                             <span>Kelola dan temukan dokumen arsip yang terhubung dengan Google Drive.</span>
-                            {hasDriveAccess && driveOwnerEmail && (
+                            {hasDriveAccess && driveAccounts && driveAccounts.length > 0 && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
-                                    <Check className="size-3 mr-1" /> Drive Tersambung: {driveOwnerEmail}
+                                    <Check className="size-3 mr-1" /> Drive Tersambung
                                 </span>
                             )}
                         </p>
@@ -381,12 +424,14 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
                                 <Plus className="size-4" /> Kelola Kategori
                             </button>
                         )}
-                        <button
-                            onClick={() => setShowUploadModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
-                        >
-                            <Upload className="size-4" /> Upload File
-                        </button>
+                        {!isMurid && (
+                            <button
+                                onClick={() => setShowUploadModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
+                            >
+                                <Upload className="size-4" /> Upload File
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -406,17 +451,17 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
                         <AlertCircle className="size-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
                         <div>
                             <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-400">Sistem Google Drive Belum Dikonfigurasi</h3>
-                            {usePage().props.auth.user.is_admin ? (
+                            {isSuperadmin ? (
                                 <>
                                     <p className="text-sm text-yellow-700 dark:text-yellow-500 mt-1 mb-3">
-                                        Untuk mengupload file arsip, sistem memerlukan satu akun Google Drive terpusat. 
-                                        Silakan login menggunakan akun Google Anda (Admin) untuk mengaktifkan integrasi Drive.
+                                        Untuk mengupload file arsip, sistem memerlukan setidaknya satu akun Google Drive. 
+                                        Silakan tautkan akun Google Anda di Pengaturan.
                                     </p>
                                     <a 
-                                        href={route('auth.google.redirect') + "?with_drive=1"} 
+                                        href={route('settings.drive')} 
                                         className="inline-flex items-center px-3 py-1.5 rounded-md bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-800/40 dark:text-yellow-300 dark:hover:bg-yellow-800/60 text-xs font-medium transition-colors"
                                     >
-                                        Hubungkan Google Drive Sistem
+                                        Buka Pengaturan Drive
                                     </a>
                                 </>
                             ) : (
@@ -497,19 +542,7 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
                                         ))}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-muted-foreground mb-1">Kelas</label>
-                                    <select 
-                                        value={activeKelas || ''} 
-                                        onChange={(e) => handleFilterChange({ kelas: e.target.value })}
-                                        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:ring-2 focus:ring-ring"
-                                    >
-                                        <option value="">Semua Kelas</option>
-                                        {rombels.map(rombel => (
-                                            <option key={rombel.id} value={rombel.id}>{rombel.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -528,12 +561,14 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
                                             ? "Belum ada file yang diupload ke kategori ini." 
                                             : "Sistem pengarsipan masih kosong. Mulai dengan mengupload file pertama Anda."}
                                     </p>
-                                    <button
-                                        onClick={() => setShowUploadModal(true)}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
-                                    >
-                                        <Upload className="size-4" /> Upload File Sekarang
-                                    </button>
+                                    {!isMurid && (
+                                        <button
+                                            onClick={() => setShowUploadModal(true)}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
+                                        >
+                                            <Upload className="size-4" /> Upload File Sekarang
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-border">
@@ -560,6 +595,15 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
                                                             /{file.path}
                                                         </span>
                                                     )}
+                                                    {(file as any).visibility && (
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${
+                                                            (file as any).visibility === 'public' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                                                            (file as any).visibility === 'guru' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                                                        }`}>
+                                                            {(file as any).visibility}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                                                     <span>{file.size}</span>
@@ -577,10 +621,10 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
                                                     href={file.drive_file_url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="p-2 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors text-xs font-medium"
                                                     title="Buka di Google Drive"
                                                 >
-                                                    <Download className="size-4" />
+                                                    <ExternalLink className="size-3.5" /> Buka
                                                 </a>
                                                 {file.is_owner && (
                                                     <button
@@ -601,7 +645,7 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
                 </div>
             </div>
 
-            {showUploadModal && <UploadModal kategoriList={kategoriList} onClose={() => setShowUploadModal(false)} />}
+            {showUploadModal && <UploadModal kategoriList={kategoriList} driveAccounts={driveAccounts} onClose={() => setShowUploadModal(false)} />}
             {showKategoriModal && <KategoriModal kategori={editingKategori} onClose={() => { setShowKategoriModal(false); setEditingKategori(null); }} />}
 
         </AppLayout>

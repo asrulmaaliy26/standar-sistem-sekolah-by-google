@@ -18,4 +18,23 @@ Route::middleware('auth')->group(function () {
     Route::get('settings/appearance', function () {
         return Inertia::render('settings/appearance');
     })->name('appearance');
+
+    // Google Drive Accounts
+    Route::get('settings/drive', function () {
+        // Hanya superadmin yang bisa melihat ini
+        if (!auth()->user()->hasRole('superadmin')) {
+            abort(403);
+        }
+        return Inertia::render('settings/Drive', [
+            'accounts' => \App\Models\GoogleDriveAccount::orderBy('email')->get()
+        ]);
+    })->name('settings.drive');
+
+    Route::delete('settings/drive/{id}', function ($id) {
+        if (!auth()->user()->hasRole('superadmin')) {
+            abort(403);
+        }
+        \App\Models\GoogleDriveAccount::findOrFail($id)->delete();
+        return back()->with('success', 'Akun Drive berhasil dihapus.');
+    })->name('settings.drive.destroy');
 });

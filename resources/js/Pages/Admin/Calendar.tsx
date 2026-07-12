@@ -14,7 +14,7 @@ export default function AdminCalendar() {
     const isAdmin = user?.is_admin || (user?.roles?.some(r => r === 'superadmin') ?? false);
     const isMurid = user?.roles?.includes('murid') ?? false;
     const isGuru = user?.roles?.includes('guru') ?? false;
-    const canSubmit = isAdmin || isGuru;
+    const canSubmit = isAdmin || (user?.roles?.some(r => r !== 'murid' && r !== 'user') ?? false);
 
     // ── Calendar state ──
     const [viewDate, setViewDate] = useState(() => {
@@ -65,12 +65,17 @@ export default function AdminCalendar() {
         try {
             const res = await fetch(
                 `/calendar/events?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`,
-                { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+                { 
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                }
             );
+            if (!res.ok) throw new Error('Network response was not ok');
             const data: CalendarEvent[] = await res.json();
-            setEvents(data);
+            setEvents(Array.isArray(data) ? data : []);
         } catch {
             showToast('Gagal memuat kegiatan.', 'error');
+            setEvents([]);
         } finally {
             setLoading(false);
         }
@@ -82,14 +87,24 @@ export default function AdminCalendar() {
         try {
             const res = await fetch(
                 `/calendar/events?start=${encodeURIComponent(today.toISOString())}&end=${encodeURIComponent(future.toISOString())}`,
-                { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+                { 
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                }
             );
+            if (!res.ok) throw new Error('Network response was not ok');
             const data: CalendarEvent[] = await res.json();
-            setUpcoming(data.sort((a, b) =>
-                new Date(a.realStart || a.start).getTime() -
-                new Date(b.realStart || b.start).getTime()
-            ).slice(0, 6));
-        } catch { /* silent */ }
+            if (Array.isArray(data)) {
+                setUpcoming(data.sort((a, b) =>
+                    new Date(a.realStart || a.start).getTime() -
+                    new Date(b.realStart || b.start).getTime()
+                ).slice(0, 6));
+            } else {
+                setUpcoming([]);
+            }
+        } catch { 
+            setUpcoming([]);
+        }
     }, []);
 
     useEffect(() => {

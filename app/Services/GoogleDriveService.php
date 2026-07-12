@@ -18,10 +18,22 @@ class GoogleDriveService
      *
      * @return array{drive_file_id: string, drive_file_url: string, drive_folder_id: string}|null
      */
-    public function uploadFile(User $user, string $kategoriName, UploadedFile $file, string $displayName, ?string $path = null): ?array
+    public function uploadFile(User $user, string $kategoriName, UploadedFile $file, string $displayName, ?string $path = null, ?\App\Models\GoogleDriveAccount $driveAccount = null): ?array
     {
-        $systemUser = User::getSystemGoogleDriveUser();
-        $client = $systemUser ? $systemUser->getGoogleClient() : null;
+        $client = null;
+
+        if ($driveAccount) {
+            $client = $driveAccount->getGoogleClient();
+        } else {
+            // Fallback: cari akun pertama yang aktif, atau kembali ke User::getSystemGoogleDriveUser()
+            $defaultAccount = \App\Models\GoogleDriveAccount::where('is_active', true)->first();
+            if ($defaultAccount) {
+                $client = $defaultAccount->getGoogleClient();
+            } else {
+                $systemUser = User::getSystemGoogleDriveUser();
+                $client = $systemUser ? $systemUser->getGoogleClient() : null;
+            }
+        }
 
         if (! $client) {
             Log::warning("GoogleDriveService: System Google Drive access is not configured. (User {$user->id} tried to upload)");
@@ -64,6 +76,13 @@ class GoogleDriveService
                 'uploadType' => 'multipart',
                 'fields'     => 'id,name,webViewLink',
             ]);
+
+            // Set permission to anyone with link can view
+            $permission = new \Google\Service\Drive\Permission([
+                'type' => 'anyone',
+                'role' => 'reader',
+            ]);
+            $driveService->permissions->create($driveFile->getId(), $permission);
 
             return [
                 'drive_file_id'   => $driveFile->getId(),

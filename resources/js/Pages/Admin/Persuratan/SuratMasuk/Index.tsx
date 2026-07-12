@@ -102,7 +102,7 @@ export default function SuratMasukIndex({ suratMasuk, filters }: IndexProps) {
                                 className="block w-full pl-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:border-input"
                             />
                         </div>
-                        <div className="w-full sm:w-48">
+                        <div className="w-full sm:w-48 flex gap-2">
                             <select
                                 value={data.status}
                                 onChange={e => {
@@ -115,6 +115,20 @@ export default function SuratMasukIndex({ suratMasuk, filters }: IndexProps) {
                                 <option value="Baru">Baru</option>
                                 <option value="Diproses">Diproses</option>
                                 <option value="Selesai">Selesai</option>
+                            </select>
+                        </div>
+                        <div className="w-full sm:w-36 flex gap-2">
+                            <select
+                                value={filters.per_page || 10}
+                                onChange={e => {
+                                    get(route('admin.surat-masuk.index'), { data: { ...data, per_page: Number(e.target.value) }, preserveState: true })
+                                }}
+                                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring"
+                            >
+                                <option value={10}>10 / halaman</option>
+                                <option value={25}>25 / halaman</option>
+                                <option value={50}>50 / halaman</option>
+                                <option value={0}>Semua</option>
                             </select>
                         </div>
                         <button type="submit" className="hidden sm:block px-4 py-2 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/80 border border-border">

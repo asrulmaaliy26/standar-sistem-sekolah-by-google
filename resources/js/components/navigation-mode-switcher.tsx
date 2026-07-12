@@ -3,6 +3,8 @@ import { ChevronDown, LogIn, RotateCcw, Briefcase, UserCircle } from 'lucide-rea
 import { useState, useRef, useEffect } from 'react';
 import { type Jabatan, type NavigationMode } from '@/types';
 import { getModeLabelDisplay } from '@/lib/navigation-config';
+import { useSidebar } from '@/components/ui/sidebar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface NavigationModeSwitcherProps {
     roles: string[];
@@ -13,6 +15,8 @@ interface NavigationModeSwitcherProps {
 export function NavigationModeSwitcher({ roles, jabatan, activeMode }: NavigationModeSwitcherProps) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
+    const { state } = useSidebar();
+    const isCollapsed = state === 'collapsed';
 
     // Tutup dropdown saat klik di luar
     useEffect(() => {
@@ -30,13 +34,25 @@ export function NavigationModeSwitcher({ roles, jabatan, activeMode }: Navigatio
         router.post(
             route('navigation.mode.switch'),
             { type, value },
-            { preserveScroll: true },
+            { 
+                onSuccess: () => {
+                    window.location.href = route('dashboard');
+                }
+            },
         );
     };
 
     const resetMode = () => {
         setOpen(false);
-        router.post(route('navigation.mode.reset'), {}, { preserveScroll: true });
+        router.post(
+            route('navigation.mode.reset'), 
+            {}, 
+            { 
+                onSuccess: () => {
+                    window.location.href = route('dashboard');
+                }
+            }
+        );
     };
 
     // Hanya tampil jika user punya jabatan
@@ -49,35 +65,54 @@ export function NavigationModeSwitcher({ roles, jabatan, activeMode }: Navigatio
     const activeLabel = getModeLabelDisplay(activeMode.type, activeMode.value);
     const isDefaultMode = activeMode.type === 'role';
 
+    const triggerIcon = isDefaultMode
+        ? <UserCircle className="size-4 shrink-0" />
+        : <Briefcase className="size-4 shrink-0" />;
+
     return (
         <div ref={ref} className="relative px-2 pb-1">
             {/* Trigger Button */}
-            <button
-                onClick={() => setOpen((o) => !o)}
-                className={`
-                    w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
-                    transition-all duration-200 group
-                    ${isDefaultMode
-                        ? 'bg-sidebar-accent/50 text-sidebar-accent-foreground hover:bg-sidebar-accent'
-                        : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25 ring-1 ring-blue-500/30'
-                    }
-                `}
-                title="Ganti Mode Navigasi"
-            >
-                {isDefaultMode ? (
-                    <UserCircle className="size-3.5 shrink-0 opacity-70" />
-                ) : (
-                    <Briefcase className="size-3.5 shrink-0" />
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        onClick={() => setOpen((o) => !o)}
+                        className={`
+                            flex items-center rounded-lg text-xs font-medium
+                            transition-all duration-200
+                            ${isCollapsed
+                                ? 'w-8 h-8 justify-center p-0 mx-auto'
+                                : 'w-full gap-2 px-3 py-2'
+                            }
+                            ${isDefaultMode
+                                ? 'bg-sidebar-accent/50 text-sidebar-accent-foreground hover:bg-sidebar-accent'
+                                : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25 ring-1 ring-blue-500/30'
+                            }
+                        `}
+                        title="Ganti Mode Navigasi"
+                    >
+                        {triggerIcon}
+                        {!isCollapsed && (
+                            <>
+                                <span className="truncate flex-1 text-left">{activeLabel}</span>
+                                <ChevronDown
+                                    className={`size-3.5 shrink-0 opacity-60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                                />
+                            </>
+                        )}
+                    </button>
+                </TooltipTrigger>
+                {isCollapsed && (
+                    <TooltipContent side="right">
+                        Mode: {activeLabel}
+                    </TooltipContent>
                 )}
-                <span className="truncate flex-1 text-left">{activeLabel}</span>
-                <ChevronDown
-                    className={`size-3.5 shrink-0 opacity-60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-                />
-            </button>
+            </Tooltip>
 
             {/* Dropdown */}
             {open && (
-                <div className="absolute left-2 right-2 bottom-full mb-1 z-50 rounded-lg border border-border bg-popover shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+                <div className={`absolute bottom-full mb-1 z-50 rounded-lg border border-border bg-popover shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150 ${
+                    isCollapsed ? 'left-full ml-2 w-48' : 'left-2 right-2'
+                }`}>
                     {/* Header */}
                     <div className="px-3 py-2 border-b border-border bg-muted/50">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">

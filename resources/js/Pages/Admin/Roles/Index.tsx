@@ -19,6 +19,22 @@ interface RolesIndexProps {
 }
 
 export default function RolesIndex({ roles }: RolesIndexProps) {
+    const [perPage, setPerPage] = React.useState<number>(10)
+
+    React.useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search)
+        const perPageParam = urlParams.get('per_page')
+        if (perPageParam !== null) {
+            setPerPage(Number(perPageParam))
+        }
+    }, [])
+
+    const handlePerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = Number(e.target.value)
+        setPerPage(value)
+        router.get(route('admin.roles.index'), { per_page: value }, { preserveState: true, replace: true })
+    }
+
     const handleDelete = (roleId: number) => {
         if (confirm('Are you sure you want to delete this role?')) {
             router.delete(route('admin.roles.destroy', roleId))
@@ -30,10 +46,22 @@ export default function RolesIndex({ roles }: RolesIndexProps) {
             <Head title="Roles Management" />
 
             <div className="p-6">
-                <div className="mb-6 flex justify-between items-center">
-                    <h1 className="text-2xl font-bold tracking-tight">
-                        Roles Management
-                    </h1>
+                <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-2xl font-bold tracking-tight">
+                            Roles Management
+                        </h1>
+                        <select
+                            value={perPage}
+                            onChange={handlePerPageChange}
+                            className="rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-36"
+                        >
+                            <option value={10}>10 / halaman</option>
+                            <option value={25}>25 / halaman</option>
+                            <option value={50}>50 / halaman</option>
+                            <option value={0}>Tampilkan Semua</option>
+                        </select>
+                    </div>
                     <Link
                         href={route('admin.roles.create')}
                         className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"

@@ -14,13 +14,17 @@ class GuruAkademikController extends Controller
     /**
      * Display a listing of gurus.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $perPageReq = (int) $request->input('per_page', 10);
+        $perPage = $perPageReq === 0 ? PHP_INT_MAX : max(1, $perPageReq);
+
         $gurus = User::with('roles', 'jabatan', 'rombel')
             ->whereHas('roles', function ($query) {
                 $query->where('name', 'guru');
             })
-            ->paginate(10)
+            ->paginate($perPage)
+            ->withQueryString()
             ->through(fn($user) => [
                 'id'                => $user->id,
                 'name'              => $user->name,
@@ -30,11 +34,12 @@ class GuruAkademikController extends Controller
                 'rombel_name'       => $user->rombel ? $user->rombel->name : null,
             ]);
 
-        $rombels = Rombel::all(['id', 'name']);
+        $rombels = Rombel::with('jenjang:id,nama')->get(['id', 'name', 'jenjang_id']);
 
         return Inertia::render('Admin/GuruAkademik/Index', [
             'gurus'   => $gurus,
             'rombels' => $rombels,
+            'filters' => ['per_page' => $perPageReq],
         ]);
     }
 

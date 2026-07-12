@@ -14,27 +14,43 @@ class ArsipFile extends Model
         'uploaded_by',
         'original_name',
         'display_name',
+        'path',
         'mime_type',
         'size_bytes',
         'drive_file_id',
         'drive_file_url',
         'drive_folder_id',
         'description',
-        'path',
+        'visibility',
+        'google_drive_account_id',
     ];
 
     protected $casts = [
         'size_bytes' => 'integer',
     ];
 
+    /**
+     * Relasi ke kategori arsip
+     */
     public function kategori(): BelongsTo
     {
         return $this->belongsTo(ArsipKategori::class, 'arsip_kategori_id');
     }
 
+    /**
+     * Relasi ke uploader (user)
+     */
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    /**
+     * Relasi ke akun google drive yang menyimpan file ini
+     */
+    public function googleDriveAccount(): BelongsTo
+    {
+        return $this->belongsTo(GoogleDriveAccount::class, 'google_drive_account_id');
     }
 
     /**

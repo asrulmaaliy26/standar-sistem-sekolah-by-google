@@ -19,8 +19,12 @@ class UserController extends Controller
     {
         $search     = $request->input('search', '');
         $filterRole = $request->input('role', '');
+        $perPageReq = (int) $request->input('per_page', 10);
 
-        $users = User::with('roles', 'jabatan')
+        // per_page = 0 berarti tampilkan semua
+        $perPage = $perPageReq === 0 ? PHP_INT_MAX : max(1, $perPageReq);
+
+        $query = User::with('roles', 'jabatan')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q2) use ($search) {
                     $q2->where('name', 'like', "%{$search}%")
@@ -30,31 +34,38 @@ class UserController extends Controller
             ->when($filterRole, function ($q) use ($filterRole) {
                 $q->whereHas('roles', fn($r) => $r->where('name', $filterRole));
             })
-            ->latest()
-            ->paginate(10)
-            ->withQueryString()
-            ->through(fn($user) => [
-                'id'               => $user->id,
-                'name'             => $user->name,
-                'email'            => $user->email,
-                'email_verified_at'=> $user->email_verified_at,
-                'roles'            => $user->roles->pluck('name'),
-                'jabatan'          => $user->jabatan->map(fn($j) => ['id' => $j->id, 'name' => $j->name])->values(),
-                'created_at'       => $user->created_at->format('Y-m-d H:i'),
-            ]);
+            ->latest();
+
+        $paginator = $query->paginate($perPage)->withQueryString();
+
+        // Transform items TANPA memakai ->through() agar struktur meta pagination tidak rusak
+        $usersData = $paginator->getCollection()->map(fn($user) => [
+            'id'               => $user->id,
+            'name'             => $user->name,
+            'email'            => $user->email,
+            'email_verified_at'=> $user->email_verified_at,
+            'roles'            => $user->roles->pluck('name'),
+            'jabatan'          => $user->jabatan->map(fn($j) => ['id' => $j->id, 'name' => $j->name])->values(),
+            'created_at'       => $user->created_at->format('Y-m-d H:i'),
+        ]);
+
+        // Kembalikan koleksi yang sudah ditransform ke dalam paginator
+        $paginator->setCollection($usersData);
 
         $roles      = Role::all(['id', 'name']);
         $jabatan    = Jabatan::all(['id', 'name']);
         $totalUsers = User::count();
 
         return Inertia::render('Admin/Users/Index', [
-            'users'      => $users,
+            'users'      => $paginator,
             'roles'      => $roles,
             'jabatan'    => $jabatan,
             'totalUsers' => $totalUsers,
-            'filters'    => ['search' => $search, 'role' => $filterRole],
+            'filters'    => ['search' => $search, 'role' => $filterRole, 'per_page' => $perPageReq],
         ]);
     }
+
+
 
     /**
      * Show the form for creating a new resource.

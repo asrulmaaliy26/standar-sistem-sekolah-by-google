@@ -44,9 +44,11 @@ class ClassroomLinkController extends Controller
             'link_uts' => 'nullable|url|max:2048',
             'uts_mulai' => 'nullable|date',
             'uts_tutup' => 'nullable|date|after_or_equal:uts_mulai',
+            'uts_durasi' => 'nullable|integer|min:1',
             'link_uas' => 'nullable|url|max:2048',
             'uas_mulai' => 'nullable|date',
             'uas_tutup' => 'nullable|date|after_or_equal:uas_mulai',
+            'uas_durasi' => 'nullable|integer|min:1',
             'keterangan' => 'nullable|string',
         ]);
 
@@ -58,9 +60,11 @@ class ClassroomLinkController extends Controller
             'link_uts' => $validated['link_uts'] ?? null,
             'uts_mulai' => $validated['uts_mulai'] ?? null,
             'uts_tutup' => $validated['uts_tutup'] ?? null,
+            'uts_durasi' => $validated['uts_durasi'] ?? null,
             'link_uas' => $validated['link_uas'] ?? null,
             'uas_mulai' => $validated['uas_mulai'] ?? null,
             'uas_tutup' => $validated['uas_tutup'] ?? null,
+            'uas_durasi' => $validated['uas_durasi'] ?? null,
             'keterangan' => $validated['keterangan'] ?? null,
         ]);
 
@@ -70,11 +74,9 @@ class ClassroomLinkController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, ClassroomLink $classroomLink)
+    public function update(Request $request, $id)
     {
-        if ($classroomLink->guru_id !== auth()->id()) {
-            abort(403, 'Unauthorized action.');
-        }
+        $link = ClassroomLink::where('guru_id', auth()->id())->findOrFail($id);
 
         $validated = $request->validate([
             'rombel_id' => 'required|exists:rombels,id',
@@ -83,22 +85,26 @@ class ClassroomLinkController extends Controller
             'link_uts' => 'nullable|url|max:2048',
             'uts_mulai' => 'nullable|date',
             'uts_tutup' => 'nullable|date|after_or_equal:uts_mulai',
+            'uts_durasi' => 'nullable|integer|min:1',
             'link_uas' => 'nullable|url|max:2048',
             'uas_mulai' => 'nullable|date',
             'uas_tutup' => 'nullable|date|after_or_equal:uas_mulai',
+            'uas_durasi' => 'nullable|integer|min:1',
             'keterangan' => 'nullable|string',
         ]);
 
-        $classroomLink->update([
+        $link->update([
             'rombel_id' => $validated['rombel_id'],
             'mapel' => $validated['mapel'],
             'link' => $validated['link'] ?? null,
             'link_uts' => $validated['link_uts'] ?? null,
             'uts_mulai' => $validated['uts_mulai'] ?? null,
             'uts_tutup' => $validated['uts_tutup'] ?? null,
+            'uts_durasi' => $validated['uts_durasi'] ?? null,
             'link_uas' => $validated['link_uas'] ?? null,
             'uas_mulai' => $validated['uas_mulai'] ?? null,
             'uas_tutup' => $validated['uas_tutup'] ?? null,
+            'uas_durasi' => $validated['uas_durasi'] ?? null,
             'keterangan' => $validated['keterangan'] ?? null,
         ]);
 
