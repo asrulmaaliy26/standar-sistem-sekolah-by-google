@@ -23,7 +23,7 @@ export default function Show({ user }: ShowProps) {
         ]}>
             <Head title={`User: ${user.name}`} />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <h1 className="text-2xl font-bold tracking-tight mb-6">User Details</h1>
 
                 <div className="max-w-2xl">

@@ -515,18 +515,18 @@ export default function SertifikatIndex({ penandatangans }: { penandatangans: Pe
         <AppLayout breadcrumbs={[{ title: 'Sertifikat', href: '/admin/sertifikat' }]}>
             <Head title="Sertifikat" />
 
-            <div className="p-6 lg:p-8 max-w-screen-xl mx-auto space-y-6">
+            <div className="p-4 lg:p-8 max-w-screen-xl mx-auto space-y-4 lg:space-y-6">
                 
                 {/* Tabs Header */}
-                <div className="flex space-x-4 border-b border-border">
+                <div className="flex space-x-4 border-b border-border overflow-x-auto whitespace-nowrap pb-1">
                     <button 
-                        className={`pb-2 px-4 font-semibold ${activeTab === 'generate' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
+                        className={`pb-2 px-4 font-semibold shrink-0 ${activeTab === 'generate' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
                         onClick={() => setActiveTab('generate')}
                     >
                         Buat Sertifikat
                     </button>
                     <button 
-                        className={`pb-2 px-4 font-semibold ${activeTab === 'manage' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
+                        className={`pb-2 px-4 font-semibold shrink-0 ${activeTab === 'manage' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
                         onClick={() => setActiveTab('manage')}
                     >
                         Kelola Penandatangan
@@ -553,9 +553,9 @@ export default function SertifikatIndex({ penandatangans }: { penandatangans: Pe
                                         <p className="text-[10px] text-muted-foreground leading-tight">
                                             Pilih simbol yang ingin dijadikan patokan lokasi Tanda Tangan.
                                         </p>
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-col sm:flex-row gap-2">
                                             <select 
-                                                className="w-1/3 rounded-md border border-border bg-white px-2 py-1.5 text-xs focus:ring-primary focus:border-primary"
+                                                className="w-full sm:w-1/3 rounded-md border border-border bg-white px-2 py-1.5 text-xs focus:ring-primary focus:border-primary"
                                                 value={selectedSymbolToScan}
                                                 onChange={e => setSelectedSymbolToScan(e.target.value)}
                                             >
@@ -567,7 +567,7 @@ export default function SertifikatIndex({ penandatangans }: { penandatangans: Pe
                                             </select>
                                             <button 
                                                 onClick={scanForSymbol}
-                                                className="w-2/3 bg-primary text-primary-foreground text-xs font-semibold rounded py-1.5 hover:bg-primary/90 transition"
+                                                className="w-full sm:w-2/3 bg-primary text-primary-foreground text-xs font-semibold rounded py-1.5 hover:bg-primary/90 transition"
                                             >
                                                 Scan Dokumen
                                             </button>
@@ -606,7 +606,7 @@ export default function SertifikatIndex({ penandatangans }: { penandatangans: Pe
                                                         </select>
                                                     </div>
 
-                                                    <div className="flex justify-between items-center">
+                                                    <div className="flex flex-wrap justify-between items-center gap-3">
                                                         <label className="flex items-center gap-2 cursor-pointer">
                                                             <input 
                                                                 type="checkbox" 
@@ -629,7 +629,7 @@ export default function SertifikatIndex({ penandatangans }: { penandatangans: Pe
 
                                                         <button 
                                                             onClick={() => copyToAllPages(p.id)}
-                                                            className="text-[10px] bg-blue-50 text-blue-600 font-semibold border border-blue-200 rounded px-2 py-1 hover:bg-blue-100 transition-colors"
+                                                            className="text-[10px] bg-blue-50 text-blue-600 font-semibold border border-blue-200 rounded px-2 py-1 hover:bg-blue-100 transition-colors w-full sm:w-auto text-center"
                                                             title="Salin tata letak ini ke halaman lain yang belum memiliki manual placement"
                                                         >
                                                             Salin Semua Hal.
@@ -788,19 +788,19 @@ export default function SertifikatIndex({ penandatangans }: { penandatangans: Pe
                                     <input type="file" accept="image/*" onChange={e => setData('file_stempel', e.target.files?.[0] || null)} className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
                                     {errors.file_stempel && <div className="text-red-500 text-xs mt-1">{errors.file_stempel}</div>}
                                 </div>
-                                <div className="md:col-span-2 flex justify-end space-x-2 mt-2">
+                                <div className="md:col-span-2 flex flex-col sm:flex-row justify-end gap-2 mt-4">
                                     {isEditing && (
-                                        <button type="button" onClick={() => { setIsEditing(false); setPreviewTtd(null); setPreviewStempel(null); reset(); }} className="px-4 py-2 border border-border rounded-md hover:bg-muted">Batal</button>
+                                        <button type="button" onClick={() => { setIsEditing(false); setPreviewTtd(null); setPreviewStempel(null); reset(); }} className="px-4 py-2 border border-border rounded-md hover:bg-muted w-full sm:w-auto">Batal</button>
                                     )}
-                                    <button type="submit" disabled={processing} className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/90 flex items-center gap-2">
+                                    <button type="submit" disabled={processing} className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/90 flex justify-center items-center gap-2 w-full sm:w-auto">
                                         <Plus className="w-4 h-4" /> {isEditing ? 'Simpan Perubahan' : 'Simpan'}
                                     </button>
                                 </div>
                             </form>
                         </div>
 
-                        <div className="bg-card border border-border rounded-xl overflow-hidden">
-                            <table className="w-full text-sm text-left text-muted-foreground">
+                        <div className="bg-card border border-border rounded-xl overflow-x-auto">
+                            <table className="w-full text-sm text-left text-muted-foreground min-w-[600px]">
                                 <thead className="text-xs uppercase bg-muted text-foreground">
                                     <tr>
                                         <th className="px-6 py-3">Nama</th>

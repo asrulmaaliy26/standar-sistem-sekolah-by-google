@@ -80,7 +80,7 @@ export default function Index({ sessions, jenjangs, rombels, filters }: Props) {
         ]}>
             <Head title="Penjaga Ujian (Proctor)" />
 
-            <div className="p-6 lg:p-8 max-w-screen-2xl mx-auto">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-2xl mx-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
                         <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Penjaga Ujian CBT</h1>

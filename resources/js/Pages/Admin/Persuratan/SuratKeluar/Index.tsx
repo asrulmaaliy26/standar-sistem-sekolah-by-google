@@ -55,7 +55,7 @@ export default function SuratKeluarIndex({ suratKeluar, filters }: IndexProps) {
         <AppLayout breadcrumbs={[{ title: 'Surat Keluar', href: '/admin/surat-keluar' }]}>
             <Head title="Data Surat Keluar" />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <div className="flex items-center gap-2">
                         <div className="p-2 bg-indigo-100 rounded-lg text-indigo-700">

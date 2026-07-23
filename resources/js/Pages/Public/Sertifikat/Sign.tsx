@@ -514,7 +514,7 @@ export default function PublicSign({ penandatangans }: { penandatangans: Penanda
                                                         </select>
                                                     </div>
 
-                                                    <div className="flex justify-between items-center">
+                                                    <div className="flex flex-wrap justify-between items-center gap-3">
                                                         <label className="flex items-center gap-2 cursor-pointer">
                                                             <input 
                                                                 type="checkbox" 

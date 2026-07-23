@@ -16,7 +16,32 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->
 Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+        $user = auth()->user();
+        $activeMode = $user->getActiveNavigationMode();
+        $roleName = $activeMode['value'] ?? 'user';
+        
+        $days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        $todayName = $days[\Carbon\Carbon::now()->dayOfWeek];
+
+        $jadwalHariIni = [];
+        if ($roleName === 'murid' && $user->rombel_id) {
+            $jadwalHariIni = \App\Models\ClassroomLink::with('guru', 'rombel.jenjang')
+                ->where('rombel_id', $user->rombel_id)
+                ->where('hari_belajar', $todayName)
+                ->orderBy('jam_mulai', 'asc')
+                ->get();
+        } elseif ($roleName === 'guru') {
+            $jadwalHariIni = \App\Models\ClassroomLink::with('rombel.jenjang')
+                ->where('guru_id', $user->id)
+                ->where('hari_belajar', $todayName)
+                ->orderBy('jam_mulai', 'asc')
+                ->get();
+        }
+
+        return Inertia::render('dashboard', [
+            'jadwalHariIni' => $jadwalHariIni,
+            'hariIni' => $todayName
+        ]);
     })->name('dashboard');
 
     Route::post('leave-impersonate', [\App\Http\Controllers\Admin\UserController::class, 'leaveImpersonate'])->name('users.leave-impersonate');

@@ -132,7 +132,7 @@ function UploadModal({
                     </button>
                 </div>
 
-                <form onSubmit={submit} className="p-6 space-y-4">
+                <form onSubmit={submit} className="p-4 sm:p-6 space-y-4">
                     <div>
                         <label className="block text-sm font-medium mb-1.5">Kategori</label>
                         <select
@@ -288,7 +288,7 @@ function KategoriModal({
                         <X className="size-5" />
                     </button>
                 </div>
-                <form onSubmit={submit} className="p-6 space-y-4">
+                <form onSubmit={submit} className="p-4 sm:p-6 space-y-4">
                     <div>
                         <label className="block text-sm font-medium mb-1.5">Nama Kategori</label>
                         <input
@@ -399,7 +399,7 @@ export default function ArsipIndex({ files, kategoriList, availableYears, rombel
         ]}>
             <Head title="Pengarsipan" />
 
-            <div className="p-6 max-w-7xl mx-auto">
+            <div className="p-4 sm:p-6 max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">

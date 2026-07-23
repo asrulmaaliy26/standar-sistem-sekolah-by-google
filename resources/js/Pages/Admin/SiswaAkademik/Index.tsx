@@ -76,7 +76,7 @@ export default function SiswaIndex({ siswa, rombels }: SiswaIndexProps) {
         <AppLayout breadcrumbs={[{ title: 'Data siswa', href: '/admin/siswa' }]}>
             <Head title="Data siswa" />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <div className="mb-6 flex justify-between items-center">
                     <h1 className="text-2xl font-bold tracking-tight">
                         Data siswa

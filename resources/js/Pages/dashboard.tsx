@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage, Link } from '@inertiajs/react';
-import { LayoutGrid, FolderArchive, BookOpen, School, Users, Calendar, Shield } from 'lucide-react';
+import { LayoutGrid, FolderArchive, BookOpen, School, Users, Calendar, Shield, Clock, ExternalLink } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
@@ -16,7 +16,7 @@ const ADMIN_LINKS = [
     { title: 'Manajemen Role', desc: 'Hak akses pengguna', href: '/admin/roles', icon: Shield, color: 'from-pink-500 to-rose-600', bg: 'bg-pink-50 dark:bg-pink-950/30', text: 'text-pink-600' },
 ];
 
-export default function Dashboard() {
+export default function Dashboard({ jadwalHariIni = [], hariIni = '' }: { jadwalHariIni?: any[], hariIni?: string }) {
     const { auth } = usePage().props as any;
     const user = auth?.user;
     const isAdmin = user?.is_admin;
@@ -34,7 +34,7 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <div className="p-6 lg:p-8 max-w-screen-xl mx-auto space-y-8">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-xl mx-auto space-y-8">
 
                 {/* ── Welcome Banner ── */}
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-8 text-white shadow-xl shadow-blue-200 dark:shadow-blue-950">
@@ -99,6 +99,55 @@ export default function Dashboard() {
                         )}
                     </div>
                 </div>
+
+                {/* ── Jadwal Hari Ini ── */}
+                {(roleName === 'murid' || roleName === 'guru') && (
+                    <div>
+                        <div className="flex items-center gap-2 mb-4">
+                            <h2 className="text-lg font-bold text-foreground">Jadwal Belajar Hari Ini</h2>
+                            <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                                {hariIni}
+                            </span>
+                        </div>
+                        {jadwalHariIni.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {jadwalHariIni.map((jadwal: any) => (
+                                    <div key={jadwal.id} className="bg-card border border-border rounded-2xl p-5 flex flex-col hover:border-indigo-200 dark:hover:border-indigo-900 transition-colors">
+                                        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-border/50">
+                                            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center flex-shrink-0">
+                                                <Clock className="w-5 h-5 text-indigo-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-foreground line-clamp-1">{jadwal.mapel}</h3>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Kelas {jadwal.rombel?.name} {jadwal.rombel?.jenjang ? `· ${jadwal.rombel.jenjang.nama}` : ''}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-auto">
+                                            <div className="text-sm font-medium bg-muted px-2.5 py-1 rounded-lg">
+                                                {jadwal.jam_mulai ? jadwal.jam_mulai.substring(0,5) : '?'} - {jadwal.jam_selesai ? jadwal.jam_selesai.substring(0,5) : '?'}
+                                            </div>
+                                            {jadwal.link && (
+                                                <a href={jadwal.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-950/30 px-3 py-1.5 rounded-lg transition-colors">
+                                                    <ExternalLink className="w-3.5 h-3.5" /> Classroom
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="p-6 rounded-2xl border border-dashed border-border flex flex-col items-center justify-center text-center bg-card/50">
+                                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                                    <BookOpen className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                                <p className="text-sm font-medium text-foreground">Tidak ada jadwal belajar di Google Classroom hari ini.</p>
+                                <p className="text-xs text-muted-foreground mt-1">Anda bisa bersantai atau mengecek tugas yang belum selesai.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* ── Admin Menu ── */}
                 {isAdmin && (

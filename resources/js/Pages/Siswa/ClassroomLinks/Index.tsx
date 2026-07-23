@@ -1,7 +1,8 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { BookOpen, ExternalLink, User, GraduationCap, AlertTriangle, FileText, ClipboardList, CalendarDays, CheckCircle2 } from 'lucide-react';
+import { BookOpen, ExternalLink, User, GraduationCap, AlertTriangle, FileText, ClipboardList, CalendarDays, CheckCircle2, Clock } from 'lucide-react';
+
 
 interface Guru {
     id: number;
@@ -19,6 +20,9 @@ interface ClassroomLink {
     uas_mulai: string | null;
     uas_tutup: string | null;
     keterangan: string | null;
+    hari_belajar: string | null;
+    jam_mulai: string | null;
+    jam_selesai: string | null;
     guru: Guru;
     created_at: string;
 }
@@ -78,7 +82,7 @@ export default function Index({ links, rombel, examSessions = [] }: IndexProps) 
         ]}>
             <Head title="Daftar Kelas Google Classroom" />
 
-            <div className="p-6 lg:p-8 max-w-screen-2xl mx-auto">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-2xl mx-auto">
 
                 {/* ── Header ── */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
@@ -148,7 +152,7 @@ export default function Index({ links, rombel, examSessions = [] }: IndexProps) 
                                     {/* Top gradient bar */}
                                     <div className={`h-2 bg-gradient-to-r ${GRADIENTS[idx]}`} />
 
-                                    <div className="p-6 flex flex-col h-full">
+                                    <div className="p-4 sm:p-6 flex flex-col h-full">
                                         {/* Icon + judul */}
                                         <div className="flex items-start gap-4 mb-4">
                                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${ICON_BG[idx]}`}>
@@ -162,6 +166,23 @@ export default function Index({ links, rombel, examSessions = [] }: IndexProps) 
                                                     <User className="w-3.5 h-3.5 flex-shrink-0" />
                                                     <span className="truncate">{link.guru?.name}</span>
                                                 </div>
+                                                {/* Jadwal belajar */}
+                                                {(link.hari_belajar || link.jam_mulai) && (
+                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                        {link.hari_belajar && (
+                                                            <span className="inline-flex items-center gap-1 text-xs bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded-full px-2.5 py-0.5 font-medium">
+                                                                <CalendarDays className="w-3 h-3" />
+                                                                {link.hari_belajar}
+                                                            </span>
+                                                        )}
+                                                        {(link.jam_mulai || link.jam_selesai) && (
+                                                            <span className="inline-flex items-center gap-1 text-xs bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded-full px-2.5 py-0.5 font-medium">
+                                                                <Clock className="w-3 h-3" />
+                                                                {link.jam_mulai ?? '?'}{link.jam_selesai ? ` – ${link.jam_selesai}` : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 

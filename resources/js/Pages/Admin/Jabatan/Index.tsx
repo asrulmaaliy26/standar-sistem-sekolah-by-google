@@ -128,7 +128,7 @@ function DeleteConfirm({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
             <div className="w-full max-w-sm mx-4 bg-card border border-border rounded-xl shadow-2xl animate-in zoom-in-95 duration-150">
-                <div className="p-6 text-center">
+                <div className="p-4 sm:p-6 text-center">
                     <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-destructive/10">
                         <Trash2 className="size-6 text-destructive" />
                     </div>
@@ -214,7 +214,7 @@ export default function JabatanIndex({ jabatan }: JabatanIndexProps) {
         ]}>
             <Head title="Manajemen Jabatan" />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 {/* Header */}
                 <div className="mb-6 flex items-start justify-between gap-4">
                     <div>
@@ -289,8 +289,8 @@ export default function JabatanIndex({ jabatan }: JabatanIndexProps) {
                         </button>
                     </div>
                 ) : (
-                    <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-                        <table className="min-w-full divide-y divide-border">
+                    <div className="bg-card border border-border rounded-xl overflow-x-auto shadow-sm">
+<table className="min-w-full divide-y divide-border whitespace-nowrap min-w-[600px]">
                             <thead className="bg-muted/50">
                                 <tr>
                                     <th className="py-3 pl-6 pr-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-8">

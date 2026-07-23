@@ -72,7 +72,7 @@ export default function Index({ rombels, jenjang }: IndexProps) {
         <AppLayout breadcrumbs={[{ title: 'Data Kelas', href: '/admin/rombels' }]}>
             <Head title="Manajemen Kelas" />
 
-            <div className="p-6 lg:p-8 max-w-screen-xl mx-auto">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-xl mx-auto">
 
                 {/* ── Header ── */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
@@ -168,7 +168,7 @@ export default function Index({ rombels, jenjang }: IndexProps) {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-1.5">Pilih Jenjang <span className="text-muted-foreground font-normal">(Opsional)</span></label>
                                 <select value={data.jenjang_id} onChange={e => setData('jenjang_id', e.target.value)} className={inputCls}>

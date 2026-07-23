@@ -46,7 +46,7 @@ export default function Show({ role, users }: ShowProps) {
         ]}>
             <Head title={`Role: ${role.name}`} />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <h1 className="text-2xl font-bold tracking-tight mb-6">Role Details</h1>
 
                 {/* Role Info */}

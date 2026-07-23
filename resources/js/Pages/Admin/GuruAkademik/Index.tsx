@@ -76,7 +76,7 @@ export default function GuruIndex({ gurus, rombels }: GuruIndexProps) {
         <AppLayout breadcrumbs={[{ title: 'Data Guru', href: '/admin/guru' }]}>
             <Head title="Data Guru" />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <div className="mb-6 flex justify-between items-center">
                     <h1 className="text-2xl font-bold tracking-tight">
                         Data Guru

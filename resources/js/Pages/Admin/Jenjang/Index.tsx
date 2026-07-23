@@ -58,7 +58,7 @@ export default function Index({ jenjang }: IndexProps) {
         <AppLayout breadcrumbs={[{ title: 'Data Jenjang', href: '/admin/jenjang' }]}>
             <Head title="Manajemen Jenjang" />
 
-            <div className="p-6 lg:p-8 max-w-screen-xl mx-auto">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-xl mx-auto">
 
                 {/* ── Header ── */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
@@ -144,7 +144,7 @@ export default function Index({ jenjang }: IndexProps) {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-1.5">Nama Jenjang</label>
                                 <input

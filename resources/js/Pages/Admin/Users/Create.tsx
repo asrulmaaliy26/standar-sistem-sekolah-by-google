@@ -40,7 +40,7 @@ export default function Create({ roles }: CreateProps) {
         ]}>
             <Head title="Create User" />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <h1 className="text-2xl font-bold tracking-tight mb-6">Create User</h1>
 
                 <div className="max-w-2xl">

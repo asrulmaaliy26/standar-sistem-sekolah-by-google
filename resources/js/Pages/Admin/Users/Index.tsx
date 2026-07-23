@@ -105,9 +105,9 @@ export default function UsersIndex({ users, roles, totalUsers, filters }: UsersI
         <AppLayout breadcrumbs={[{ title: 'Manajemen User', href: '/admin/users' }]}>
             <Head title="Manajemen User" />
 
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-5">
                 {/* ── Header ── */}
-                <div className="flex justify-between items-center">
+                <div className="flex flex-wrap justify-between items-center gap-3">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Manajemen User</h1>
                         <p className="text-sm text-muted-foreground mt-0.5">

@@ -45,7 +45,7 @@ export default function RolesIndex({ roles }: RolesIndexProps) {
         <AppLayout breadcrumbs={[{ title: 'Manajemen Role', href: '/admin/roles' }]}>
             <Head title="Roles Management" />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-4">
                         <h1 className="text-2xl font-bold tracking-tight">

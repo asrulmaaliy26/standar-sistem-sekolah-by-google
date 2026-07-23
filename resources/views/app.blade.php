@@ -31,11 +31,10 @@
             }
         </style>
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ config('app.name', 'LPI Al Hidayah') }}</title>
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        <link rel="icon" href="/pwa-icons/icon-192x192.png" type="image/png">
+        <link rel="apple-touch-icon" href="/pwa-icons/icon-192x192.png">
 
         {{-- PWA Manifest & Meta Tags --}}
         <link rel="manifest" href="/manifest.json">

@@ -20,7 +20,7 @@ export default function Create() {
         ]}>
             <Head title="Create Role" />
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <h1 className="text-2xl font-bold tracking-tight mb-6">Create Role</h1>
 
                 <div className="max-w-2xl">

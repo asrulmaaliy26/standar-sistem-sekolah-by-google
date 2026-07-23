@@ -2075,7 +2075,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                 </div>
                                 <div className="border-border bg-muted/10 flex-1 overflow-auto border-b">
                                     {viewMasterData === 'waktu' ? (
-                                        <div className="p-6">
+                                        <div className="p-4 sm:p-6">
                                             <form
                                                 onSubmit={(e) => {
                                                     e.preventDefault();

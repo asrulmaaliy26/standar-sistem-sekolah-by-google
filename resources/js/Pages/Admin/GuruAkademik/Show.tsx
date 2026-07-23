@@ -95,7 +95,7 @@ export default function GuruShow({ guru, links, rombels }: GuruShowProps) {
         >
             <Head title={`Profil Guru - ${guru.name}`} />
 
-            <div className="p-6 max-w-7xl mx-auto space-y-6">
+            <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
                 
                 {/* Profile Card */}
                 <div className="bg-card shadow rounded-lg border border-border p-6">
@@ -132,7 +132,7 @@ export default function GuruShow({ guru, links, rombels }: GuruShowProps) {
 
                 {/* Classroom Links Section */}
                 <div className="bg-card shadow rounded-lg border border-border overflow-hidden">
-                    <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
+                    <div className="p-4 sm:p-6 border-b border-border flex justify-between items-center bg-muted/30">
                         <h2 className="text-xl font-bold">Daftar Tautan Kelas</h2>
                         <button
                             onClick={isAddingLink ? handleCloseForm : handleOpenForm}
@@ -144,7 +144,7 @@ export default function GuruShow({ guru, links, rombels }: GuruShowProps) {
 
                     {/* Add/Edit Form */}
                     {isAddingLink && (
-                        <div className="p-6 bg-accent/20 border-b border-border">
+                        <div className="p-4 sm:p-6 bg-accent/20 border-b border-border">
                             <h3 className="text-lg font-semibold mb-4">
                                 {editingLinkId ? 'Edit Tautan Kelas' : 'Form Tambah Tautan Kelas'}
                             </h3>

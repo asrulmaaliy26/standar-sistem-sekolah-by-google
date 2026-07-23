@@ -47,7 +47,7 @@ export default function AdminDashboard({ stats, settings }: AdminDashboardProps)
         <AppLayout breadcrumbs={[{ title: 'Admin Dashboard', href: '/admin/dashboard' }]}>
             <Head title="Admin Dashboard" />
 
-            <div className="p-6 lg:p-8 max-w-screen-xl mx-auto space-y-8">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-xl mx-auto space-y-8">
 
                 {/* ── Header Banner ── */}
                 <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-black p-8 text-white shadow-xl">

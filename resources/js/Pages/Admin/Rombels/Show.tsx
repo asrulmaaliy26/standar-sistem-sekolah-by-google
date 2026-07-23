@@ -28,7 +28,7 @@ export default function Show({ rombel, users }: ShowProps) {
         ]}>
             <Head title={`Murid Kelas ${rombel.name}`} />
 
-            <div className="p-6 lg:p-8 max-w-screen-xl mx-auto space-y-8">
+            <div className="p-4 sm:p-6 lg:p-8 max-w-screen-xl mx-auto space-y-8">
                 
                 {/* ── Header ── */}
                 <div className="flex flex-col gap-4">
