@@ -2313,7 +2313,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                 {viewMasterData === 'ruang' && (
                                                     <tr>
                                                         <th className="p-3">Nama Ruang</th>
-                                                        <th className="p-3">Kapasitas</th>
+                                                        <th className="p-3">Jenis Ruang (Kecil/Besar)</th>
                                                         <th className="p-3">Aksi</th>
                                                     </tr>
                                                 )}
@@ -2549,7 +2549,21 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                         <tr key={r.id} className="border-border hover:bg-muted/50 border-b last:border-0">
                                                             <td className="p-3 font-medium">{r.nama_ruang}</td>
                                                             <td className="p-3">{r.kapasitas}</td>
-                                                            <td className="p-3">
+                                                            <td className="p-3 flex gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const newJenis = prompt('Edit Jenis Ruang (Kecil/Besar):', r.kapasitas);
+                                                                        if (newJenis === null) return;
+                                                                        router.put(route('admin.krs.master_data.ruang.update', r.id), {
+                                                                            nama_ruang: r.nama_ruang,
+                                                                            kapasitas: newJenis,
+                                                                        }, { preserveScroll: true });
+                                                                    }}
+                                                                    className="rounded bg-blue-50 p-1.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700"
+                                                                    title="Edit Jenis Ruang"
+                                                                >
+                                                                    <Edit className="h-4 w-4" />
+                                                                </button>
                                                                 <button
                                                                     onClick={() => handleDeleteMasterData('ruang', r.id)}
                                                                     className="rounded bg-red-50 p-1.5 text-red-500 hover:bg-red-100 hover:text-red-700"
@@ -2574,7 +2588,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                 type="text"
                                                                 id="new_rng_kapasitas"
                                                                 className="border-input bg-background w-full rounded border p-1 text-sm"
-                                                                placeholder="Kapasitas"
+                                                                placeholder="Jenis Ruang (Kecil/Besar)"
                                                             />
                                                         </td>
                                                         <td className="p-3">
@@ -2583,7 +2597,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                     const nama = (document.getElementById('new_rng_nama') as HTMLInputElement).value;
                                                                     const kap = (document.getElementById('new_rng_kapasitas') as HTMLInputElement)
                                                                         .value;
-                                                                    if (!nama || !kap) return alert('Lengkapi data');
+                                                                    if (!nama || !kap) return alert('Lengkapi data Nama dan Jenis Ruang');
                                                                     router.post(
                                                                         route('admin.krs.master_data.store'),
                                                                         {

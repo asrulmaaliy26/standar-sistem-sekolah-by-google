@@ -446,6 +446,20 @@ class KrsSchedulingController extends Controller
         }
     }
 
+    public function updateRuang(Request $request, $id)
+    {
+        $request->validate([
+            'nama_ruang' => 'nullable|string|max:255',
+            'kapasitas' => 'nullable|string|max:255',
+            'jenis_ruang' => 'nullable|string|max:255',
+        ]);
+
+        $ruang = \App\Models\KrsRuang::findOrFail($id);
+        $ruang->update($request->only(['nama_ruang', 'kapasitas', 'jenis_ruang']));
+
+        return redirect()->back()->with('success', 'Data ruang berhasil diperbarui.');
+    }
+
     public function storeMasterData(Request $request)
     {
         $request->validate([

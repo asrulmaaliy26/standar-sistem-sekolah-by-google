@@ -29,7 +29,7 @@ interface TabMainDisplayProps {
 
 export default function TabMainDisplay({ plots, waktus = [], rule3Active = true, setEditPlot, setEditData, setEditTimes }: TabMainDisplayProps) {
     const daysOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-    const [selectPlotModal, setSelectPlotModal] = useState<{ hari: string; waktu: any; kelas: string } | null>(null);
+    const [selectPlotModal, setSelectPlotModal] = useState<{ hari: string; waktu: any; ruang: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Extract unique rooms from plots
@@ -51,11 +51,8 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
         }
     });
 
-    // Extract unique classes
-    const uniqueClasses = Array.from(new Set(plots.map((p) => p.matakuliah.kelas))).filter(Boolean).sort((a, b) => {
-        // Simple numeric/string sort
-        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-    });
+    // Extract unique rooms using the existing uniqueRuangs definition at line 36
+    // uniqueClasses is no longer used for columns
 
     return (
         <>
@@ -70,14 +67,14 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                                     <tr>
                                         <th rowSpan={2} className="border border-slate-300 dark:border-slate-700 bg-emerald-200 dark:bg-emerald-900 p-2 font-bold uppercase w-16">JAM KE</th>
                                         <th rowSpan={2} className="border border-slate-300 dark:border-slate-700 bg-emerald-200 dark:bg-emerald-900 p-2 font-bold uppercase w-32">WAKTU</th>
-                                        <th colSpan={uniqueClasses.length} className="border border-slate-300 dark:border-slate-700 bg-emerald-300 dark:bg-emerald-800 p-2 font-bold uppercase tracking-widest text-sm text-center">
+                                        <th colSpan={uniqueRuangs.length} className="border border-slate-300 dark:border-slate-700 bg-emerald-300 dark:bg-emerald-800 p-2 font-bold uppercase tracking-widest text-sm text-center">
                                             {day}
                                         </th>
                                 </tr>
                                 <tr>
-                                    {uniqueClasses.map((cls) => (
-                                        <th key={cls} className="border border-slate-300 dark:border-slate-700 bg-emerald-200 dark:bg-emerald-900 p-2 font-bold">
-                                            {cls}
+                                    {uniqueRuangs.map((ruangan) => (
+                                        <th key={ruangan} className="border border-slate-300 dark:border-slate-700 bg-emerald-200 dark:bg-emerald-900 p-2 font-bold">
+                                            {ruangan}
                                         </th>
                                     ))}
                                 </tr>
@@ -89,7 +86,7 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                                             <tr key={w.id} className="bg-amber-100 dark:bg-amber-900/50">
                                                 <td className="border border-slate-300 dark:border-slate-700 p-2 font-bold">{index + 1}</td>
                                                 <td className="border border-slate-300 dark:border-slate-700 p-2 font-bold">{w.jam_mulai.slice(0, 5)} - {w.jam_selesai.slice(0, 5)}</td>
-                                                <td colSpan={uniqueClasses.length} className="border border-slate-300 dark:border-slate-700 p-2 font-bold tracking-widest text-amber-800 dark:text-amber-300 uppercase">
+                                                <td colSpan={uniqueRuangs.length} className="border border-slate-300 dark:border-slate-700 p-2 font-bold tracking-widest text-amber-800 dark:text-amber-300 uppercase">
                                                     ISTIRAHAT
                                                 </td>
                                             </tr>
@@ -100,19 +97,19 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                                         <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                             <td className="border border-slate-300 dark:border-slate-700 p-2 font-medium bg-slate-100 dark:bg-slate-800/80">{index + 1}</td>
                                             <td className="border border-slate-300 dark:border-slate-700 p-2 font-medium bg-slate-100 dark:bg-slate-800/80">{w.jam_mulai.slice(0, 5)} - {w.jam_selesai.slice(0, 5)}</td>
-                                            {uniqueClasses.map((cls) => {
-                                                const cellPlots = plotsInDay.filter((p) => p.matakuliah.kelas === cls && p.krs_waktu_ids?.includes(w.id));
+                                            {uniqueRuangs.map((ruangan) => {
+                                                const cellPlots = plotsInDay.filter((p) => p.ruang?.nama_ruang === ruangan && p.krs_waktu_ids?.includes(w.id));
                                                 
                                                 return (
                                                     <td
-                                                        key={cls}
+                                                        key={ruangan}
                                                         className={`border border-slate-300 dark:border-slate-700 p-0 align-top transition-colors ${cellPlots.length === 0 ? 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30 cursor-pointer group' : ''}`}
                                                         onClick={() => {
                                                             if (cellPlots.length === 0) {
                                                                 setSelectPlotModal({
                                                                     hari: day,
                                                                     waktu: w,
-                                                                    kelas: cls
+                                                                    ruang: ruangan as string
                                                                 });
                                                             }
                                                         }}
@@ -271,7 +268,7 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                 createPortal(
                     <div className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/50 p-4">
                         <div className="bg-card text-card-foreground border-border relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border p-6 shadow-2xl">
-                            <h3 className="mb-4 text-xl font-bold">Pilih Kelas untuk Diplot (Kelas {selectPlotModal.kelas})</h3>
+                            <h3 className="mb-4 text-xl font-bold">Pilih Kelas untuk Diplot ({selectPlotModal.ruang})</h3>
 
                             <input
                                 type="text"
@@ -283,7 +280,6 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
 
                             <div className="max-h-[60vh] flex-1 space-y-2 overflow-y-auto pr-2">
                                 {plots
-                                    .filter((p) => p.matakuliah.kelas === selectPlotModal.kelas)
                                     .filter((p) => !p.krs_waktu_ids || p.krs_waktu_ids.length === 0)
                                     .filter(
                                         (p) =>
@@ -295,11 +291,14 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                                             key={plot.id}
                                             className="border-border hover:bg-muted flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors"
                                             onClick={() => {
+                                                const selectedRoomPlot = plots.find(p => p.ruang?.nama_ruang === selectPlotModal.ruang);
+                                                const roomIdStr = selectedRoomPlot?.ruang?.id?.toString() || '';
+                                                
                                                 setEditPlot(plot);
                                                 setEditData({
                                                     krs_dosen_id: plot.krs_dosen_id?.toString() || '',
                                                     krs_dosen_kedua_id: plot.krs_dosen_kedua_id?.toString() || '',
-                                                    krs_ruang_id: '',
+                                                    krs_ruang_id: roomIdStr,
                                                     hari: selectPlotModal.hari,
                                                     krs_waktu_ids: [],
                                                     is_locked: false,
@@ -322,9 +321,8 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                                         </div>
                                     ))}
                                 {plots
-                                    .filter((p) => p.matakuliah.kelas === selectPlotModal.kelas)
                                     .filter((p) => !p.krs_waktu_ids || p.krs_waktu_ids.length === 0).length === 0 && (
-                                    <div className="text-muted-foreground p-4 text-center">Tidak ada mata pelajaran yang belum diplot untuk kelas ini.</div>
+                                    <div className="text-muted-foreground p-4 text-center">Semua kelas sudah terplot ke dalam jadwal.</div>
                                 )}
                             </div>
 

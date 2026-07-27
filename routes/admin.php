@@ -101,6 +101,7 @@ Route::middleware(['auth', 'verified', 'role:admin akademik,admin penjadwalan,su
     Route::post('krs/master-data', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'storeMasterData'])->name('krs.master_data.store');
     Route::post('krs/master-data/delete', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'destroyMasterData'])->name('krs.master_data.delete');
     Route::delete('krs/master-data/{type}/{id}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'destroySingleMasterData'])->name('krs.master_data.delete_single');
+    Route::put('krs/master-data/ruang/{id}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateRuang'])->name('krs.master_data.ruang.update');
     Route::put('krs/master-data/dosen/{id}/max-sks', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateDosenMaxSks'])->name('krs.master_data.dosen.update_sks');
     Route::post('krs/master-data/dosen/auto-max-sks', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'autoCalculateMaxSks'])->name('krs.master_data.dosen.auto_sks');
 });
