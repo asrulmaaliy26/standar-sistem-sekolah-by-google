@@ -23,7 +23,7 @@ class KrsCsvService
      * Format matakuliah: kode_mp, nama_mp, kelas, pj, jumlah_santri
      */
     private array $typeCsvHeaders = [
-        'matakuliah'     => ['kode_mp', 'nama_mp', 'kelas', 'pj', 'jumlah_santri'],
+        'matakuliah'     => ['kode_mp', 'nama_mp', 'kelas', 'pj', 'jumlah_santri', 'semester'],
         'dosen'          => ['nama_pendidik', 'kode_mp', 'kelas', 'prioritas', 'max_pj'],
         'ruang'          => ['kode_ruang', 'nama_ruang', 'kapasitas', 'jenis_ruang'],
         'waktu'          => ['jam_mulai', 'jam_selesai'],
@@ -35,9 +35,9 @@ class KrsCsvService
      */
     private array $typeCsvExamples = [
         'matakuliah' => [
-            ['20000011A01', 'PANCASILA 2', 'A', '2', '30'],
-            ['20000011A01', 'PANCASILA 2', 'B', '2', '28'],
-            ['22040111D01', 'PSIKOLOGI DASAR 6', 'A', '6', '25'],
+            ['20000011A01', 'PANCASILA 2', 'A', '2', '30', '1'],
+            ['20000011A01', 'PANCASILA 2', 'B', '2', '28', '1'],
+            ['22040111D01', 'PSIKOLOGI DASAR 6', 'A', '6', '25', '3'],
         ],
         'dosen' => [
             ['Ali Syahidin Mubarok', '20000011A01', 'A', '1', ''],
@@ -121,12 +121,12 @@ class KrsCsvService
         $waktus   = KrsWaktu::where('krs_period_id', $periodId)->get();
 
         $rows = [];
-        $rows[] = ['Kode MP', 'Nama MP', 'Kelas', 'PJ', 'Pendidik Utama', 'Pendidik Pendamping', 'Ruang', 'Hari', 'Jam', 'Status'];
+        $rows[] = ['Kode MP', 'Nama MP', 'Kelas', 'SKS', 'Pendidik', 'Semester', 'Hari', 'Jam Mulai', 'Jam Akhir', 'Ruang', 'Jenis Ruang', 'Status', 'Pesan Konflik'];
 
         foreach ($plots as $plot) {
-            $waktuStr = '';
-            $hariStr  = $plot->hari ?? '-';
-
+            $hariStr = $plot->hari ?? '-';
+            $jamMulai = '';
+            $jamAkhir = '';
             if ($plot->krs_waktu_ids) {
                 $plotWaktus = collect($plot->krs_waktu_ids)
                     ->map(fn($id) => $waktus->firstWhere('id', $id))
@@ -134,21 +134,30 @@ class KrsCsvService
                     ->values();
 
                 if ($plotWaktus->count() > 0) {
-                    $waktuStr = $plotWaktus->first()->jam_mulai . ' - ' . $plotWaktus->last()->jam_selesai;
+                    $jamMulai = $plotWaktus->first()->jam_mulai;
+                    $jamAkhir = $plotWaktus->last()->jam_selesai;
                 }
             }
 
+            $pendidik = $plot->dosen?->nama_dosen ?? '-';
+            if ($plot->dosenKedua) {
+                $pendidik .= ' & ' . $plot->dosenKedua->nama_dosen;
+            }
+
             $rows[] = [
-                $plot->matakuliah?->kode_mk,
-                $plot->matakuliah?->nama_mk,
-                $plot->matakuliah?->kelas,
-                $plot->matakuliah?->sks,
-                $plot->dosen?->nama_dosen ?? '-',
-                $plot->dosenKedua?->nama_dosen ?? '-',
-                $plot->ruang?->nama_ruang ?? '-',
+                $plot->matakuliah?->kode_mk ?? '-',
+                $plot->matakuliah?->nama_mk ?? '-',
+                $plot->matakuliah?->kelas ?? '-',
+                $plot->matakuliah?->sks ?? '-',
+                $pendidik,
+                $plot->matakuliah?->semester ?? '-',
                 $hariStr,
-                $waktuStr,
-                $plot->is_conflict ? 'Konflik: ' . $plot->conflict_message : 'Aman',
+                $jamMulai,
+                $jamAkhir,
+                $plot->ruang?->nama_ruang ?? '-',
+                $plot->matakuliah?->jenis_ruang ?? '-',
+                $plot->is_conflict ? 'Konflik' : ($hariStr !== '-' ? 'Aman' : 'Belum Diplot'),
+                $plot->conflict_message ?? '-',
             ];
         }
 
@@ -200,6 +209,7 @@ class KrsCsvService
         $namaDosenCol = false;
         
         $kodeCount = 0;
+        $semesterIndex = false;
         foreach ($headers as $idx => $val) {
             $valLower = strtolower(trim($val ?? ''));
             if ($valLower === 'kode') {
@@ -213,6 +223,7 @@ class KrsCsvService
             elseif ($valLower === 'mata kuliah') $mkIndex = $idx;
             elseif ($valLower === 'sks') $sksIndex = $idx;
             elseif ($valLower === 'jenis_ruang') $ruangIndex = $idx;
+            elseif ($valLower === 'semester') $semesterIndex = $idx;
             elseif ($valLower === 'kode.1' || str_starts_with($valLower, 'kode_dosen') || $valLower === 'kode dosen') $kodeDosenCol = $idx;
             elseif ($valLower === 'nama') $namaDosenCol = $idx;
         }
@@ -221,6 +232,7 @@ class KrsCsvService
         if ($mkIndex === false) $mkIndex = 1;
         if ($sksIndex === false) $sksIndex = 2;
         if ($ruangIndex === false) $ruangIndex = 12;
+        if ($semesterIndex === false) $semesterIndex = 13; // kolom N di template baru
         if ($kodeDosenCol === false) $kodeDosenCol = 14;
         if ($namaDosenCol === false) $namaDosenCol = 15;
         
@@ -247,6 +259,9 @@ class KrsCsvService
             $namaMk = $row[$mkIndex] ?? '';
             $sks = (int)($row[$sksIndex] ?? 0);
             $jenisRuang = $row[$ruangIndex] ?? null;
+            $semesterVal = isset($row[$semesterIndex]) && is_numeric($row[$semesterIndex]) 
+                ? (int)$row[$semesterIndex] 
+                : null;
             
             foreach ($classColumns as $colIndex => $kelas) {
                 $kelas = trim($kelas);
@@ -263,8 +278,15 @@ class KrsCsvService
                         'nama_mk'     => $namaMk,
                         'sks'         => $sks,
                         'jenis_ruang' => $jenisRuang,
+                        'semester'    => $semesterVal,
                     ]
                 );
+                
+                // Jika record sudah ada tapi semester belum diisi, update sekarang
+                if ($mk->semester === null && $semesterVal !== null) {
+                    $mk->semester = $semesterVal;
+                    $mk->save();
+                }
                 
                 $dosenCodesArr = explode('/', $dosenCodes);
                 $dosenId = null;
@@ -325,6 +347,7 @@ class KrsCsvService
                 'kelas'            => $data[2] ?? '',
                 'sks'              => (int) ($data[3] ?? 0),
                 'jenis_ruang'      => $data[4] ?? null,
+                'semester'         => isset($data[5]) && $data[5] !== '' ? (int) $data[5] : null,
             ]);
             
             $dosen = KrsDosen::where('krs_period_id', $periodId)

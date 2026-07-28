@@ -14,6 +14,7 @@ class KrsMatakuliah extends Model
         'kode_mk',
         'nama_mk',
         'kelas',
+        'semester',
         'sks',
         'jenis_ruang',
     ];

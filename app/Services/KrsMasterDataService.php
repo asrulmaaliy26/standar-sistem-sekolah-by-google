@@ -35,6 +35,7 @@ class KrsMasterDataService
                 'kelas'            => $data['kelas'],
                 'sks'              => $data['pj'],
                 'jenis_ruang'      => $data['jenis_ruang'] ?? null,
+                'semester'         => isset($data['semester']) && $data['semester'] !== '' ? (int) $data['semester'] : null,
             ]);
 
             $dosen = KrsDosen::where('krs_period_id', $periodId)

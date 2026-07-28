@@ -12,7 +12,7 @@ interface Plot {
     hari: string | null;
     is_conflict: boolean;
     conflict_message: string | null;
-    matakuliah: { kode_mk: string; nama_mk: string; kelas: string; sks: number; jenis_ruang: string | null };
+    matakuliah: { kode_mk: string; nama_mk: string; kelas: string; semester: number | null; sks: number; jenis_ruang: string | null };
     dosen?: { id: number; nama_dosen: string };
     ruang?: { id: number; nama_ruang: string; kapasitas: string | null };
     waktu_details?: { id: number; hari: string; jam_mulai: string; jam_selesai: string }[];
@@ -25,6 +25,17 @@ interface TabMainDisplayProps {
     setEditPlot: (plot: any) => void;
     setEditData: (data: any) => void;
     setEditTimes: (times: string[]) => void;
+}
+
+// Helper: menentukan kelas warna Tailwind berdasarkan semester matakuliah
+function getSemesterColorClass(semester: number | null | undefined): string {
+    switch (semester) {
+        case 1:  return 'bg-emerald-100 dark:bg-emerald-900/30 hover:bg-emerald-200 dark:hover:bg-emerald-900/50'; // Hijau
+        case 3:  return 'bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50';           // Biru
+        case 5:  return 'bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50';   // Kuning
+        case 7:  return 'bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/50';   // Oranye
+        default: return 'bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-700/50';       // Default
+    }
 }
 
 export default function TabMainDisplay({ plots, waktus = [], rule3Active = true, setEditPlot, setEditData, setEditTimes }: TabMainDisplayProps) {
@@ -56,6 +67,22 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
 
     return (
         <>
+            {/* Legend Warna Semester */}
+            <div className="flex flex-wrap items-center gap-3 px-1 pb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Keterangan Warna:</span>
+                {[
+                    { label: 'Semester 1', color: 'bg-emerald-200 dark:bg-emerald-800 border-emerald-400' },
+                    { label: 'Semester 3', color: 'bg-blue-200 dark:bg-blue-800 border-blue-400' },
+                    { label: 'Semester 5', color: 'bg-yellow-200 dark:bg-yellow-800 border-yellow-400' },
+                    { label: 'Semester 7', color: 'bg-orange-200 dark:bg-orange-800 border-orange-400' },
+                    { label: 'Lainnya', color: 'bg-slate-200 dark:bg-slate-700 border-slate-400' },
+                ].map(({ label, color }) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                        <span className={`inline-block w-4 h-4 rounded border ${color}`}></span>
+                        <span className="text-xs text-muted-foreground">{label}</span>
+                    </div>
+                ))}
+            </div>
             <div className="space-y-8">
                 {daysOrder.map((day) => {
                     const plotsInDay = plots.filter((p) => p.hari === day);
@@ -126,7 +153,7 @@ export default function TabMainDisplay({ plots, waktus = [], rule3Active = true,
                                                                         (plot.krs_dosen_kedua_id && dosenDailyLoad[plot.hari] && dosenDailyLoad[plot.hari][plot.krs_dosen_kedua_id] > 6)
                                                                     ));
                                                                     
-                                                                    let bgColorClass = 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40';
+                                                                    let bgColorClass = getSemesterColorClass(plot.matakuliah.semester);
                                                                     let conflictClass = '';
                                                                     if (plot.is_conflict) {
                                                                         conflictClass = 'text-red-600 font-bold dark:text-red-400';

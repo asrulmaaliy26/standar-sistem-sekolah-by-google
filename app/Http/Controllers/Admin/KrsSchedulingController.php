@@ -314,10 +314,11 @@ class KrsSchedulingController extends Controller
                     \Log::info("[ImportJadwal] Row #{$rowIndex}: PLOT FOUND id={$plot->id}");
 
                     $pendidikStr = trim($row[4] ?? '');
-                    $hariStr     = trim($row[5] ?? '');
-                    $jamMulaiStr = trim($row[6] ?? '');
-                    $jamAkhirStr = trim($row[7] ?? '');
-                    $ruangStr    = trim($row[8] ?? '');
+                    $semesterStr = trim($row[5] ?? '');
+                    $hariStr     = trim($row[6] ?? '');
+                    $jamMulaiStr = trim($row[7] ?? '');
+                    $jamAkhirStr = trim($row[8] ?? '');
+                    $ruangStr    = trim($row[9] ?? '');
 
                     // --- Resolve HARI ---
                     $newHari = ($hariStr && $hariStr !== '-') ? $hariStr : null;
@@ -657,6 +658,17 @@ class KrsSchedulingController extends Controller
         $dosen->save();
 
         return redirect()->back()->with('success', 'Batas PJ Pendidik berhasil diperbarui.');
+    }
+
+    public function updateMatakuliahSemester(Request $request, int $id)
+    {
+        $mk = \App\Models\KrsMatakuliah::findOrFail($id);
+        $mk->semester = ($request->semester !== null && $request->semester !== '')
+            ? (int) $request->semester
+            : null;
+        $mk->save();
+
+        return redirect()->back()->with('success', 'Semester Matakuliah berhasil diperbarui.');
     }
 
     public function autoCalculateMaxSks(Request $request)

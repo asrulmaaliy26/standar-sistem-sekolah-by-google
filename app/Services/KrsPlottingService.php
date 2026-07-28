@@ -317,6 +317,9 @@ class KrsPlottingService
         // Track dosen time usage
         // $dosenTimeUsage[hari][dosen_id][waktu_id] = true
         $dosenTimeUsage = [];
+        // Track student group time usage (semester + kelas)
+        // $studentGroupUsage[hari][semester_kelas][waktu_id] = true
+        $studentGroupUsage = [];
 
         // Track global load for distribution (Pemerataan)
         $dayLoad = [];
@@ -348,6 +351,15 @@ class KrsPlottingService
                     if ($plot->krs_waktu_ids && $h) {
                         foreach ($plot->krs_waktu_ids as $wId) {
                             $dosenTimeUsage[$h][$namaDosen][$wId] = true;
+                        }
+                    }
+                }
+
+                if ($plot->matakuliah->semester && $plot->matakuliah->kelas) {
+                    $groupKey = $plot->matakuliah->semester . '_' . strtolower(trim($plot->matakuliah->kelas));
+                    if ($plot->krs_waktu_ids && $h) {
+                        foreach ($plot->krs_waktu_ids as $wId) {
+                            $studentGroupUsage[$h][$groupKey][$wId] = true;
                         }
                     }
                 }
@@ -443,6 +455,11 @@ class KrsPlottingService
             $selectedDosen = ($existingPlot && $existingPlot->krs_dosen_id) ? KrsDosen::find($existingPlot->krs_dosen_id) : null;
             $selectedDosenKedua = ($existingPlot && $existingPlot->krs_dosen_kedua_id) ? KrsDosen::find($existingPlot->krs_dosen_kedua_id) : null;
 
+            $studentGroupKey = null;
+            if ($mk->semester && $mk->kelas) {
+                $studentGroupKey = $mk->semester . '_' . strtolower(trim($mk->kelas));
+            }
+
             if ($dosensList->isEmpty()) {
                 $isConflict = true;
                 $conflictMsg[] = "Tidak ada pendidik utama yang tersedia atau semua melebihi beban maksimal.";
@@ -500,6 +517,8 @@ class KrsPlottingService
                                 $slotsTakenInDay++;
                             } elseif ($namaDosenKedua && isset($dosenTimeUsage[$hari][$namaDosenKedua][$w->id])) {
                                 $slotsTakenInDay++;
+                            } elseif ($studentGroupKey && isset($studentGroupUsage[$hari][$studentGroupKey][$w->id])) {
+                                $slotsTakenInDay++; // Anggap sibuk jika kelas semester ini sedang dipakai
                             }
                         }
 
@@ -551,6 +570,9 @@ class KrsPlottingService
                                     break;
                                 }
                                 if ($namaDosenKedua && isset($dosenTimeUsage[$hari][$namaDosenKedua][$w->id])) {
+                                    break;
+                                }
+                                if ($studentGroupKey && isset($studentGroupUsage[$hari][$studentGroupKey][$w->id])) {
                                     break;
                                 }
 
@@ -718,6 +740,10 @@ class KrsPlottingService
                         $dosenTimeUsage[$selectedHari][$namaDosen][$wId] = true;
                         $roomUsage[$selectedHari][$selectedRuang->id][$wId] = true;
 
+                        if ($studentGroupKey) {
+                            $studentGroupUsage[$selectedHari][$studentGroupKey][$wId] = true;
+                        }
+
                         $dayLoad[$selectedHari] = ($dayLoad[$selectedHari] ?? 0) + 1;
                         $roomLoad[$selectedRuang->id] = ($roomLoad[$selectedRuang->id] ?? 0) + 1;
                     }
@@ -745,10 +771,11 @@ class KrsPlottingService
 
     public function validateConflicts($periodId)
     {
-        $plots = KrsJadwalPlot::where('krs_period_id', $periodId)->with('dosen')->get();
+        $plots = KrsJadwalPlot::where('krs_period_id', $periodId)->with(['dosen', 'matakuliah'])->get();
 
         $roomUsage = [];
         $dosenUsage = [];
+        $studentGroupUsage = [];
 
         // Build usage map
         foreach ($plots as $plot) {
@@ -765,6 +792,10 @@ class KrsPlottingService
                 if ($plot->krs_dosen_kedua_id && $plot->dosenKedua) {
                     $namaDosenKedua = strtolower(trim($plot->dosenKedua->nama_dosen));
                     $dosenUsage[$plot->hari][$namaDosenKedua][$wId][] = $plot->id;
+                }
+                if ($plot->matakuliah && $plot->matakuliah->semester && $plot->matakuliah->kelas) {
+                    $groupKey = $plot->matakuliah->semester . '_' . strtolower(trim($plot->matakuliah->kelas));
+                    $studentGroupUsage[$plot->hari][$groupKey][$wId][] = $plot->id;
                 }
             }
         }
@@ -827,6 +858,7 @@ class KrsPlottingService
             if ($plot->hari && $plot->krs_waktu_ids) {
                 $roomConflict = false;
                 $dosenConflict = false;
+                $studentGroupConflict = false;
 
                 foreach ($plot->krs_waktu_ids as $wId) {
                     if ($plot->krs_ruang_id) {
@@ -849,6 +881,13 @@ class KrsPlottingService
                             $dosenConflict = true;
                         }
                     }
+                    if ($plot->matakuliah && $plot->matakuliah->semester && $plot->matakuliah->kelas) {
+                        $groupKey = $plot->matakuliah->semester . '_' . strtolower(trim($plot->matakuliah->kelas));
+                        $users = $studentGroupUsage[$plot->hari][$groupKey][$wId] ?? [];
+                        if (count($users) > 1) {
+                            $studentGroupConflict = true;
+                        }
+                    }
                 }
 
                 if ($roomConflict) {
@@ -858,6 +897,10 @@ class KrsPlottingService
                 if ($dosenConflict) {
                     $isConflict = true;
                     $msgs[] = "Bentrok Jadwal Dosen.";
+                }
+                if ($studentGroupConflict) {
+                    $isConflict = true;
+                    $msgs[] = "Bentrok Jadwal Kelas (Semester sama).";
                 }
             }
 

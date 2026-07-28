@@ -47,7 +47,7 @@ interface Plot {
     is_conflict: boolean;
     conflict_message: string | null;
     conflict_group_id?: number | null;
-    matakuliah: { kode_mk: string; nama_mk: string; kelas: string; sks: number };
+    matakuliah: { kode_mk: string; nama_mk: string; kelas: string; semester: number | null; sks: number };
     dosen?: { id: number; nama_dosen: string };
     ruang?: { id: number; nama_ruang: string };
     waktu_details?: { id: number; hari: string; jam_mulai: string; jam_selesai: string }[];
@@ -488,8 +488,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         const wb = XLSX.utils.book_new();
         const date = new Date().toISOString().split('T')[0];
 
-        // Standard format: Hari, Jam Mulai, Jam Akhir dipisah. Ruang & Jenis Ruang di paling kanan sebelum Status.
-        const header = ["Kode MP", "Nama MP", "Kelas", "SKS", "Pendidik", "Hari", "Jam Mulai", "Jam Akhir", "Ruang", "Jenis Ruang", "Status", "Pesan Konflik"];
+        // Standard format: Hari, Jam Mulai, Jam Akhir dipisah.
+        const header = ["Kode MP", "Nama MP", "Kelas", "SKS", "Pendidik", "Semester", "Hari", "Jam Mulai", "Jam Akhir", "Ruang", "Jenis Ruang", "Status", "Pesan Konflik"];
 
         if (activeTab === 'mapel' || activeTab === 'main_display') {
             const wsData = [header];
@@ -504,6 +504,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                     p.matakuliah?.kelas || '-',
                     p.matakuliah?.sks || '-',
                     pendidik,
+                    p.matakuliah?.semester || '-',
                     p.hari || '-',
                     jamMulai,
                     jamAkhir,
@@ -541,7 +542,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
             groups.forEach((g) => {
                 if (g.plots.length === 0) {
-                    wsData.push(["-", "Belum ada kelas", "-", "-", g.nama_dosen, "-", "-", "-", "-", "-", "-", "-"]);
+                    wsData.push(["-", "Belum ada kelas", "-", "-", g.nama_dosen, "-", "-", "-", "-", "-", "-", "-", "-"]);
                 } else {
                     g.plots.forEach((p: any) => {
                         const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
@@ -554,6 +555,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             p.matakuliah?.kelas || '-',
                             p.matakuliah?.sks || '-',
                             pendidik,
+                            p.matakuliah?.semester || '-',
                             p.hari || '-',
                             jamMulai,
                             jamAkhir,
@@ -586,7 +588,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
             rGroups.forEach((g) => {
                 if (g.plots.length === 0) {
-                    wsData.push(["-", "Belum ada kelas", "-", "-", "-", "-", "-", "-", g.ruang.nama_ruang, "-", "-", "-"]);
+                    wsData.push(["-", "Belum ada kelas", "-", "-", "-", "-", "-", "-", "-", g.ruang.nama_ruang, "-", "-", "-"]);
                 } else {
                     const sorted = [...g.plots].sort((a,b) => (a.hari||'').localeCompare(b.hari||''));
                     sorted.forEach(p => {
@@ -600,6 +602,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             p.matakuliah?.kelas || '-',
                             p.matakuliah?.sks || '-',
                             pendidik,
+                            p.matakuliah?.semester || '-',
                             p.hari || '-',
                             jamMulai,
                             jamAkhir,
@@ -646,6 +649,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                         p.matakuliah?.kelas || '-',
                         p.matakuliah?.sks || '-',
                         pendidik,
+                        p.matakuliah?.semester || '-',
                         hari,
                         jamMulai,
                         jamAkhir,
@@ -2297,6 +2301,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                         <th className="p-3">Kelas</th>
                                                         <th className="p-3">PJ</th>
                                                         <th className="p-3">Jenis Ruang</th>
+                                                        <th className="p-3">Semester</th>
                                                         <th className="p-3">Aksi</th>
                                                     </tr>
                                                 )}
@@ -2307,6 +2312,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                         <th className="p-3">Nama Mapel</th>
                                                         <th className="p-3">Kelas</th>
                                                         <th className="p-3">Max PJ</th>
+                                                        <th className="p-3">Semester</th>
                                                         <th className="p-3">Aksi</th>
                                                     </tr>
                                                 )}
@@ -2327,6 +2333,30 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                             <td className="p-3">{m.kelas}</td>
                                                             <td className="p-3">{m.sks}</td>
                                                             <td className="p-3">{m.jenis_ruang || '-'}</td>
+                                                            <td className="p-3">
+                                                                <input
+                                                                    type="number"
+                                                                    className="border-input bg-background w-20 rounded border p-1 text-sm"
+                                                                    defaultValue={m.semester || ''}
+                                                                    placeholder="-"
+                                                                    onBlur={(e) => {
+                                                                        const val = e.target.value;
+                                                                        if (val !== String(m.semester || '')) {
+                                                                            router.put(
+                                                                                route('admin.krs.master_data.matakuliah.update_semester', m.id),
+                                                                                { semester: val },
+                                                                                {
+                                                                                    preserveScroll: true,
+                                                                                    onSuccess: () =>
+                                                                                        alert(
+                                                                                            'Semester Mapel ' + m.nama_mk + ' berhasil diperbarui.',
+                                                                                        ),
+                                                                                },
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </td>
                                                             <td className="p-3">
                                                                 <button
                                                                     onClick={() => handleDeleteMasterData('matakuliah', m.id)}
@@ -2381,6 +2411,14 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                             />
                                                         </td>
                                                         <td className="p-3">
+                                                            <input
+                                                                type="number"
+                                                                id="new_mk_semester"
+                                                                className="border-input bg-background w-full rounded border p-1 text-sm"
+                                                                placeholder="Semester"
+                                                            />
+                                                        </td>
+                                                        <td className="p-3">
                                                             <button
                                                                 onClick={() => {
                                                                     const kode = (document.getElementById('new_mk_kode') as HTMLInputElement).value;
@@ -2390,6 +2428,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                     const jenis_ruang = (
                                                                         document.getElementById('new_mk_jenis_ruang') as HTMLInputElement
                                                                     ).value;
+                                                                    const semester = (document.getElementById('new_mk_semester') as HTMLInputElement).value;
                                                                     if (!kode || !nama || !kelas || !sks) return alert('Lengkapi data');
                                                                     router.post(
                                                                         route('admin.krs.master_data.store'),
@@ -2401,6 +2440,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                             kelas: kelas,
                                                                             pj: sks,
                                                                             jenis_ruang: jenis_ruang,
+                                                                            semester: semester || null,
                                                                         },
                                                                         {
                                                                             preserveScroll: true,
@@ -2412,6 +2452,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                                 (document.getElementById('new_mk_kelas') as HTMLInputElement).value =
                                                                                     '';
                                                                                 (document.getElementById('new_mk_sks') as HTMLInputElement).value =
+                                                                                    '';
+                                                                                (document.getElementById('new_mk_semester') as HTMLInputElement).value =
                                                                                     '';
                                                                             },
                                                                         },
@@ -2457,6 +2499,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                         }}
                                                                     />
                                                                 </td>
+                                                                <td className="p-3">{mk?.semester || '-'}</td>
                                                                 <td className="p-3">
                                                                     <button
                                                                         onClick={() => handleDeleteMasterData('dosen', d.id)}
@@ -2503,6 +2546,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                                 placeholder="Max PJ"
                                                             />
                                                         </td>
+                                                        <td className="p-3">-</td>
                                                         <td className="p-3">
                                                             <button
                                                                 onClick={() => {
