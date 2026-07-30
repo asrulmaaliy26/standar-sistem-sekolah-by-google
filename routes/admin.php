@@ -86,6 +86,7 @@ Route::middleware(['auth', 'verified', 'admin_akademik'])->prefix('admin')->name
 Route::middleware(['auth', 'verified', 'role:admin akademik,admin penjadwalan,superadmin'])->prefix('admin')->name('admin.')->group(function () {
     // Ploting KRS
     Route::get('krs', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'index'])->name('krs.index');
+    Route::get('krs/view', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'view'])->name('krs.view');
     Route::post('krs/period', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'storePeriod'])->name('krs.period.store');
     Route::post('krs/period/hari-aktif', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateHariAktif'])->name('krs.period.hari_aktif');
     Route::get('krs/template/{type}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'downloadTemplate'])->name('krs.template');
@@ -104,6 +105,7 @@ Route::middleware(['auth', 'verified', 'role:admin akademik,admin penjadwalan,su
     Route::put('krs/master-data/ruang/{id}', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateRuang'])->name('krs.master_data.ruang.update');
     Route::put('krs/master-data/dosen/{id}/max-sks', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateDosenMaxSks'])->name('krs.master_data.dosen.update_sks');
     Route::put('krs/master-data/matakuliah/{id}/semester', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateMatakuliahSemester'])->name('krs.master_data.matakuliah.update_semester');
+    Route::put('krs/master-data/matakuliah/{id}/kelas', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'updateMatakuliahKelas'])->name('krs.master_data.matakuliah.update_kelas');
     Route::post('krs/master-data/dosen/auto-max-sks', [\App\Http\Controllers\Admin\KrsSchedulingController::class, 'autoCalculateMaxSks'])->name('krs.master_data.dosen.auto_sks');
 });
 

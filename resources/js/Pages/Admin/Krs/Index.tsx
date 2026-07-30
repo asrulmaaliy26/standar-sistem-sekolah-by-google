@@ -30,7 +30,7 @@ import {
     Settings, 
     Save,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import TabMapel from './Tabs/TabMapel';
 import TabPendidik from './Tabs/TabPendidik';
@@ -94,8 +94,52 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('Semua');
-    const [activeTab, setActiveTab] = useState<'main_display' | 'ruang' | 'dosen' | 'mapel'>('main_display');
-    const [activeImportTab, setActiveImportTab] = useState<'baru' | 'lama' | 'lengkap'>('baru');
+    const [activeImportTab, setActiveImportTab] = useState<'baru' | 'lama' | 'lengkap'>(() => {
+        try {
+            return (localStorage.getItem('krs_active_import_tab') as any) || 'baru';
+        } catch {
+            return 'baru';
+        }
+    });
+
+    // 🌟 GLOBAL SCROLL PRESERVER
+    // Menyimpan posisi scroll halaman agar ketika edit matkul (rabu dll) tidak kembali ke atas
+    useEffect(() => {
+        // Coba kembalikan scroll setelah komponen mount
+        const restoreScroll = () => {
+            const savedScroll = sessionStorage.getItem('krs_scroll_position');
+            if (savedScroll) {
+                window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'instant' });
+            }
+        };
+
+        // Tunggu sedikit agar DOM render selesai, lalu scroll
+        const timer = setTimeout(restoreScroll, 100);
+
+        // Simpan posisi scroll setiap kali user scrolling
+        let scrollTimeout: NodeJS.Timeout;
+        const handleScroll = () => {
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                sessionStorage.setItem('krs_scroll_position', window.scrollY.toString());
+            }, 100);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        
+        // Simpan sebelum reload/unload (F5)
+        const handleBeforeUnload = () => {
+            sessionStorage.setItem('krs_scroll_position', window.scrollY.toString());
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            clearTimeout(timer);
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
 
     const uniqueDosensList = React.useMemo(() => {
         if (!editPlot) return [];
@@ -177,7 +221,13 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         }
     });
 
-    const [activeRuleTab, setActiveRuleTab] = useState<'aturan1' | 'aturan2' | 'aturan3' | 'aturan4'>('aturan1');
+    const [activeRuleTab, setActiveRuleTab] = useState<'aturan1' | 'aturan2' | 'aturan3' | 'aturan4'>(() => {
+        try {
+            return (localStorage.getItem('krs_active_rule_tab') as any) || 'aturan1';
+        } catch {
+            return 'aturan1';
+        }
+    });
 
     // Streaming states
     const [isPlotting, setIsPlotting] = useState(false);
@@ -196,7 +246,13 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         localStorage.setItem('krs_rule3_active', JSON.stringify(rule3Active));
         localStorage.setItem('krs_rule_abaikan_jenis', JSON.stringify(ruleAbaikanJenis));
         localStorage.setItem('krs_rule_tanpa_ruangan', JSON.stringify(ruleTanpaRuangan));
-    }, [ruleActive, ruleStartSlot, ruleEndSlot, ruleMkCodes, rule2Active, rule2StartSlot, rule2EndSlot, rule2MkCodes, rule3Active, ruleAbaikanJenis, ruleTanpaRuangan]);
+        localStorage.setItem('krs_active_import_tab', activeImportTab);
+        localStorage.setItem('krs_active_rule_tab', activeRuleTab);
+    }, [ruleActive, ruleStartSlot, ruleEndSlot, ruleMkCodes, rule2Active, rule2StartSlot, rule2EndSlot, rule2MkCodes, rule3Active, ruleAbaikanJenis, ruleTanpaRuangan, activeImportTab, activeRuleTab]);
+
+    useEffect(() => {
+        if (!activePeriodId) return;
+    }, [activePeriodId]);
 
     // Auto-select ruang based on class if editing manually and ruleTanpaRuangan is true
     React.useEffect(() => {
@@ -333,6 +389,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
     const handleCreatePeriod = (e: React.FormEvent) => {
         e.preventDefault();
         postPeriod(route('admin.krs.period.store'), {
+            preserveScroll: true,
             onSuccess: () => alert('Periode berhasil dibuat!'),
         });
     };
@@ -343,6 +400,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         e.preventDefault();
         if (!importData.file) return alert('Pilih file CSV');
         postImport(route('admin.krs.import'), {
+            preserveScroll: true,
             onSuccess: () => {
                 setImportData('file', null);
             },
@@ -419,7 +477,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                             if (data.done) {
                                 setTimeout(() => {
                                     setIsPlotting(false);
-                                    router.reload();
+                                    router.reload({ preserveScroll: true });
                                 }, 1500);
                             }
                         } catch (e) {
@@ -437,13 +495,13 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
     const handleResetPlot = () => {
         if (confirm('Reset hanya hasil plot (hapus dosen, ruang, waktu)?')) {
-            router.post(route('admin.krs.reset'), { period_id: activePeriodId });
+            router.post(route('admin.krs.reset'), { period_id: activePeriodId }, { preserveScroll: true });
         }
     };
 
     const handleResetAll = () => {
         if (confirm('AWAS! Hapus seluruh hasil plotting BESERTA Master Data Mapel dan Dosen dari database?')) {
-            router.post(route('admin.krs.reset_all'), { period_id: activePeriodId });
+            router.post(route('admin.krs.reset_all'), { period_id: activePeriodId }, { preserveScroll: true });
         }
     };
 
@@ -470,6 +528,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
         router.post(route('admin.krs.import_jadwal'), formData, {
             forceFormData: true,
+            preserveScroll: true,
             onSuccess: () => {
                 e.target.value = '';
             },
@@ -490,199 +549,42 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
         // Standard format: Hari, Jam Mulai, Jam Akhir dipisah.
         const header = ["Kode MP", "Nama MP", "Kelas", "SKS", "Pendidik", "Semester", "Hari", "Jam Mulai", "Jam Akhir", "Ruang", "Jenis Ruang", "Status", "Pesan Konflik"];
-
-        if (activeTab === 'mapel' || activeTab === 'main_display') {
-            const wsData = [header];
-            sortedPlots.forEach(p => {
-                const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
-                const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
-                const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
-                const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
-                wsData.push([
-                    p.matakuliah?.kode_mk || '-',
-                    p.matakuliah?.nama_mk || '-',
-                    p.matakuliah?.kelas || '-',
-                    p.matakuliah?.sks || '-',
-                    pendidik,
-                    p.matakuliah?.semester || '-',
-                    p.hari || '-',
-                    jamMulai,
-                    jamAkhir,
-                    ruang,
-                    p.matakuliah?.jenis_ruang || '-',
-                    p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
-                    p.conflict_message || '-'
-                ]);
-            });
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "Mapel");
-            XLSX.writeFile(wb, `Jadwal_Berdasarkan_Mapel_${date}.xlsx`);
-        } 
-        else if (activeTab === 'dosen') {
-            const wsData = [header];
-            const groups = new Map();
-            dosens.forEach(d => {
-                const name = d.nama_dosen?.trim();
-                if (name) groups.set(name, { nama_dosen: name, plots: [] });
-            });
-            groups.set('Belum Ditentukan', { nama_dosen: 'Belum Ditentukan', plots: [] });
-            
-            plots.forEach(p => {
-                let assigned = false;
-                const assign = (dosenObj: any) => {
-                    const name = dosenObj ? dosenObj.nama_dosen?.trim() : 'Belum Ditentukan';
-                    if (!groups.has(name)) groups.set(name, { nama_dosen: name, plots: [] });
-                    groups.get(name).plots.push(p);
-                    assigned = true;
-                };
-                if (p.dosen || p.krs_dosen_id) assign(p.dosen || dosens.find((d: any) => d.id === p.krs_dosen_id));
-                if (p.dosenKedua || p.krs_dosen_kedua_id) assign(p.dosenKedua || dosens.find((d: any) => d.id === p.krs_dosen_kedua_id));
-                if (!assigned) assign(null);
-            });
-
-            groups.forEach((g) => {
-                if (g.plots.length === 0) {
-                    wsData.push(["-", "Belum ada kelas", "-", "-", g.nama_dosen, "-", "-", "-", "-", "-", "-", "-", "-"]);
-                } else {
-                    g.plots.forEach((p: any) => {
-                        const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
-                        const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
-                        const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
-                        const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
-                        wsData.push([
-                            p.matakuliah?.kode_mk || '-',
-                            p.matakuliah?.nama_mk || '-',
-                            p.matakuliah?.kelas || '-',
-                            p.matakuliah?.sks || '-',
-                            pendidik,
-                            p.matakuliah?.semester || '-',
-                            p.hari || '-',
-                            jamMulai,
-                            jamAkhir,
-                            ruang,
-                            p.matakuliah?.jenis_ruang || '-',
-                            p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
-                            p.conflict_message || '-'
-                        ]);
-                    });
-                }
-            });
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "Pendidik");
-            XLSX.writeFile(wb, `Jadwal_Berdasarkan_Pendidik_${date}.xlsx`);
-        }
-        else if (activeTab === 'ruang') {
-            const wsData = [header];
-            const rGroups = new Map();
-            ruangs.forEach((r: any) => {
-                const name = r.nama_ruang?.trim();
-                if (name) rGroups.set(name, { ruang: r, plots: [] });
-            });
-            rGroups.set('Belum Ditentukan', { ruang: { nama_ruang: 'Belum Ditentukan', kapasitas: '-' }, plots: [] });
-            
-            plots.forEach(p => {
-                const name = p.ruang ? p.ruang.nama_ruang?.trim() : 'Belum Ditentukan';
-                if (!rGroups.has(name)) rGroups.set(name, { ruang: { nama_ruang: name, kapasitas: '-' }, plots: [] });
-                rGroups.get(name).plots.push(p);
-            });
-
-            rGroups.forEach((g) => {
-                if (g.plots.length === 0) {
-                    wsData.push(["-", "Belum ada kelas", "-", "-", "-", "-", "-", "-", "-", g.ruang.nama_ruang, "-", "-", "-"]);
-                } else {
-                    const sorted = [...g.plots].sort((a,b) => (a.hari||'').localeCompare(b.hari||''));
-                    sorted.forEach(p => {
-                        const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
-                        const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
-                        const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
-                        const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
-                        wsData.push([
-                            p.matakuliah?.kode_mk || '-',
-                            p.matakuliah?.nama_mk || '-',
-                            p.matakuliah?.kelas || '-',
-                            p.matakuliah?.sks || '-',
-                            pendidik,
-                            p.matakuliah?.semester || '-',
-                            p.hari || '-',
-                            jamMulai,
-                            jamAkhir,
-                            ruang,
-                            p.matakuliah?.jenis_ruang || '-',
-                            p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
-                            p.conflict_message || '-'
-                        ]);
-                    });
-                }
-            });
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "Ruangan");
-            XLSX.writeFile(wb, `Jadwal_Berdasarkan_Ruangan_${date}.xlsx`);
-        }
-        else if (activeTab === 'hari') {
-            const wsData = [header];
-            const hGroups = new Map();
-            const hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-            hariList.forEach(h => hGroups.set(h, []));
-            hGroups.set('Belum Diplot', []);
-
-            plots.forEach(p => {
-                const h = p.hari || 'Belum Diplot';
-                if (!hGroups.has(h)) hGroups.set(h, []);
-                hGroups.get(h).push(p);
-            });
-
-            hGroups.forEach((plotsArr, hari) => {
-                if (plotsArr.length === 0) return;
-                const sorted = [...plotsArr].sort((a: any, b: any) => {
-                    if (!a.waktu_details?.length) return 1;
-                    if (!b.waktu_details?.length) return -1;
-                    return a.waktu_details[0].jam_mulai.localeCompare(b.waktu_details[0].jam_mulai);
-                });
-                sorted.forEach((p: any) => {
-                    const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
-                    const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
-                    const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
-                    const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
-                    wsData.push([
-                        p.matakuliah?.kode_mk || '-',
-                        p.matakuliah?.nama_mk || '-',
-                        p.matakuliah?.kelas || '-',
-                        p.matakuliah?.sks || '-',
-                        pendidik,
-                        p.matakuliah?.semester || '-',
-                        hari,
-                        jamMulai,
-                        jamAkhir,
-                        ruang,
-                        p.matakuliah?.jenis_ruang || '-',
-                        p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
-                        p.conflict_message || '-'
-                    ]);
-                });
-            });
-
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "Hari");
-            XLSX.writeFile(wb, `Jadwal_Berdasarkan_Hari_${date}.xlsx`);
-        }
+        const wsData = [header];
+        sortedPlots.forEach(p => {
+            const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
+            const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
+            const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
+            const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
+            wsData.push([
+                p.matakuliah?.kode_mk || '-',
+                p.matakuliah?.nama_mk || '-',
+                p.matakuliah?.kelas || '-',
+                p.matakuliah?.sks || '-',
+                pendidik,
+                p.matakuliah?.semester || '-',
+                p.hari || '-',
+                jamMulai,
+                jamAkhir,
+                ruang,
+                p.matakuliah?.jenis_ruang || '-',
+                p.is_conflict ? 'Konflik' : (p.hari ? 'Aman' : 'Belum Diplot'),
+                p.conflict_message || '-'
+            ]);
+        });
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, "Jadwal");
+        XLSX.writeFile(wb, `Jadwal_${date}.xlsx`);
     };
 
     const submitEdit = (e: React.FormEvent) => {
         e.preventDefault();
         if (editPlot) {
             putEdit(route('admin.krs.plot.update', editPlot.id), {
+                preserveScroll: true,
                 onSuccess: () => {
                     alert('Plot diperbarui');
                     setEditPlot(null);
                 },
-            });
-        }
-    };
-
-    const handleDeleteMasterData = (type: string, id: number) => {
-        if (confirm(`Yakin ingin menghapus data ${type} ini?`)) {
-            router.delete(route('admin.krs.master_data.delete_single', { type, id }), {
-                preserveScroll: true,
             });
         }
     };
@@ -703,7 +605,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                         <select
                             className="border-input bg-background text-foreground rounded border p-2 dark:bg-slate-900 dark:text-slate-100"
                             value={activePeriodId}
-                            onChange={(e) => router.get(route('admin.krs.index', { period_id: e.target.value }))}
+                            onChange={(e) => router.get(route('admin.krs.index', { period_id: e.target.value }), {}, { preserveScroll: true, preserveState: true })}
                         >
                             <option value="">-- Pilih Periode --</option>
                             {periods.map((p: any) => (
@@ -748,65 +650,43 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
                 {activePeriodId && (
                     <>
-                        {/* Stats Grid */}
                         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                             {[
-                                {
-                                    title: 'Mapel',
-                                    count: matakuliahs.length,
-                                    id: 'matakuliah',
-                                    icon: BookOpen,
-                                    color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-                                },
-                                {
-                                    title: 'Pendidik',
-                                    count: dosens.length,
-                                    id: 'dosen',
-                                    icon: Users,
-                                    color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
-                                },
-                                {
-                                    title: 'Ruang',
-                                    count: ruangs.length,
-                                    id: 'ruang',
-                                    icon: MapPin,
-                                    color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
-                                },
-                                {
-                                    title: 'Waktu',
-                                    count: waktus.length,
-                                    id: 'waktu',
-                                    icon: Clock,
-                                    color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400',
-                                },
+                                { title: 'Mapel', count: matakuliahs.length, id: 'matakuliah', icon: BookOpen, color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
+                                { title: 'Pendidik', count: dosens.length, id: 'dosen', icon: Users, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' },
+                                { title: 'Ruang', count: ruangs.length, id: 'ruang', icon: MapPin, color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
+                                { title: 'Waktu', count: waktus.length, id: 'waktu', icon: Clock, color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
                             ].map((s) => (
-                                <div
-                                    key={s.id}
-                                    className="bg-card text-card-foreground border-border flex flex-col justify-between rounded-xl border p-5 shadow-sm"
-                                >
+                                <div key={s.id} className="bg-card text-card-foreground border-border flex flex-col justify-between rounded-xl border p-5 shadow-sm">
                                     <div className="mb-4 flex items-start justify-between">
                                         <h3 className="text-muted-foreground font-semibold">{s.title}</h3>
-                                        <div className={`rounded-lg p-2 ${s.color}`}>
-                                            <s.icon className="h-5 w-5" />
-                                        </div>
+                                        <div className={`rounded-lg p-2 ${s.color}`}><s.icon className="h-5 w-5" /></div>
                                     </div>
-                                    <div className="mb-4">
-                                        <span className="text-3xl font-bold">{s.count}</span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setViewMasterData(s.id);
-                                        }}
-                                        className="text-primary hover:text-primary/80 group flex w-fit items-center text-sm font-medium"
-                                    >
-                                        {s.id === 'waktu' ? 'Kelola Waktu' : 'Lihat Data'}{' '}
-                                        <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                    <div className="mb-4"><span className="text-3xl font-bold">{s.count}</span></div>
+                                    <button type="button" onClick={() => setViewMasterData(s.id)} className="text-primary hover:text-primary/80 group flex w-fit items-center text-sm font-medium">
+                                        {s.id === 'waktu' ? 'Kelola Waktu' : 'Lihat Data'} <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
                                     </button>
                                 </div>
                             ))}
+                        </div>
+
+                        <div className="mb-6 flex gap-3">
+                            <button onClick={handlePlot} className="flex items-center gap-2 rounded bg-indigo-600 px-4 py-2 text-white shadow hover:bg-indigo-700">
+                                <Play className="h-4 w-4" /> Plot Otomatis
+                            </button>
+                            <button onClick={handleResetPlot} className="flex items-center gap-2 rounded bg-orange-500 px-4 py-2 text-white shadow hover:bg-orange-600">
+                                <RefreshCw className="h-4 w-4" /> Reset Plot
+                            </button>
+                            <button onClick={handleResetAll} className="flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-white shadow hover:bg-red-700">
+                                <Trash2 className="h-4 w-4" /> Reset Semua
+                            </button>
+                            <input type="file" className="hidden" ref={importJadwalInputRef} onChange={handleImportJadwalChange} accept=".xlsx, .xls, .csv" />
+                            <button onClick={handleImportJadwalClick} className="ml-auto flex items-center gap-2 rounded bg-emerald-600 px-4 py-2 text-white shadow hover:bg-emerald-700">
+                                <Upload className="h-4 w-4" /> Import Jadwal Excel
+                            </button>
+                            <button onClick={handleExport} className="flex items-center gap-2 rounded bg-slate-800 px-4 py-2 text-white shadow hover:bg-slate-900">
+                                <Download className="h-4 w-4" /> Export Excel
+                            </button>
                         </div>
 
                         {/* Import Section */}
@@ -1090,7 +970,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                             Total Kapasitas Fisik: <span className="font-bold">{readiness_data.total_kapasitas_ruang} Slot</span>
                                             <br />
                                             <span className="text-muted-foreground text-xs">
-                                                ({readiness_data.total_ruang_fisik} Ruang Fisik × {readiness_data.hari_aktif_count} Hari Aktif ×{' '}
+                                                ({readiness_data.total_ruang_fisik} Ruang Fisik ├ù {readiness_data.hari_aktif_count} Hari Aktif ├ù{' '}
                                                 {readiness_data.slot_per_hari} JP/Hari)
                                             </span>
                                         </p>
@@ -1521,7 +1401,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     </div>
                                                     {r1TeacherOverloadCount > 0 && (
                                                         <div className="mt-1 pt-1 border-t border-red-200 flex justify-between font-bold text-red-600 dark:text-red-400">
-                                                            <span>⚠️ Dosen Overload:</span>
+                                                            <span>ÔÜá´©Å Dosen Overload:</span>
                                                             <span>{r1TeacherOverloadCount} Org &gt; {maxSksPerTeacher1} SKS</span>
                                                         </div>
                                                     )}
@@ -1547,7 +1427,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                     </div>
                                                     {r2TeacherOverloadCount > 0 && (
                                                         <div className="mt-1 pt-1 border-t border-red-200 flex justify-between font-bold text-red-600 dark:text-red-400">
-                                                            <span>⚠️ Dosen Overload:</span>
+                                                            <span>ÔÜá´©Å Dosen Overload:</span>
                                                             <span>{r2TeacherOverloadCount} Org &gt; {maxSksPerTeacher2} SKS</span>
                                                         </div>
                                                     )}
@@ -1589,426 +1469,26 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                         </div>
 
                         {/* Actions */}
-                        <div className="mb-6 flex gap-3">
-                            <button
-                                onClick={handlePlot}
-                                className="flex items-center gap-2 rounded bg-indigo-600 px-4 py-2 text-white shadow hover:bg-indigo-700"
-                            >
-                                <Play className="h-4 w-4" /> Plot Otomatis
-                            </button>
-                            <button
-                                onClick={handleResetPlot}
-                                className="flex items-center gap-2 rounded bg-orange-500 px-4 py-2 text-white shadow hover:bg-orange-600"
-                            >
-                                <RefreshCw className="h-4 w-4" /> Reset Plot
-                            </button>
-                            <button
-                                onClick={handleResetAll}
-                                className="flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-white shadow hover:bg-red-700"
-                            >
-                                <Trash2 className="h-4 w-4" /> Reset Semua
-                            </button>
-                            <input 
-                                type="file" 
-                                className="hidden" 
-                                ref={importJadwalInputRef} 
-                                onChange={handleImportJadwalChange} 
-                                accept=".xlsx, .xls, .csv" 
-                            />
-                            <button
-                                onClick={handleImportJadwalClick}
-                                className="ml-auto flex items-center gap-2 rounded bg-emerald-600 px-4 py-2 text-white shadow hover:bg-emerald-700"
-                            >
-                                <Upload className="h-4 w-4" /> Import Jadwal Excel
-                            </button>
-                            <button
-                                onClick={handleExport}
-                                className="flex items-center gap-2 rounded bg-slate-800 px-4 py-2 text-white shadow hover:bg-slate-900"
-                            >
-                                <Download className="h-4 w-4" /> Export Excel
-                            </button>
+                        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <a href={route('admin.krs.view', { tab: 'main_display', period_id: activePeriodId })} className="flex flex-col items-center justify-center p-6 border rounded-xl shadow-sm bg-white hover:bg-slate-50 hover:border-primary transition-all dark:bg-slate-900 dark:hover:bg-slate-800">
+                                <span className="font-bold text-lg mb-2 text-center text-primary">Main Display</span>
+                                <span className="text-sm text-muted-foreground text-center">Lihat Seluruh Jadwal Berdasarkan Hari</span>
+                            </a>
+                            <a href={route('admin.krs.view', { tab: 'ruang', period_id: activePeriodId })} className="flex flex-col items-center justify-center p-6 border rounded-xl shadow-sm bg-white hover:bg-slate-50 hover:border-primary transition-all dark:bg-slate-900 dark:hover:bg-slate-800">
+                                <span className="font-bold text-lg mb-2 text-center text-primary">Berdasarkan Ruangan</span>
+                                <span className="text-sm text-muted-foreground text-center">Lihat Jadwal Per Ruang Kelas</span>
+                            </a>
+                            <a href={route('admin.krs.view', { tab: 'dosen', period_id: activePeriodId })} className="flex flex-col items-center justify-center p-6 border rounded-xl shadow-sm bg-white hover:bg-slate-50 hover:border-primary transition-all dark:bg-slate-900 dark:hover:bg-slate-800">
+                                <span className="font-bold text-lg mb-2 text-center text-primary">Berdasarkan Pendidik</span>
+                                <span className="text-sm text-muted-foreground text-center">Lihat Jadwal Mengajar Pendidik</span>
+                            </a>
+                            <a href={route('admin.krs.view', { tab: 'mapel', period_id: activePeriodId })} className="flex flex-col items-center justify-center p-6 border rounded-xl shadow-sm bg-white hover:bg-slate-50 hover:border-primary transition-all dark:bg-slate-900 dark:hover:bg-slate-800">
+                                <span className="font-bold text-lg mb-2 text-center text-primary">Berdasarkan Kelas/Mapel</span>
+                                <span className="text-sm text-muted-foreground text-center">Lihat Jadwal Per Mata Pelajaran</span>
+                            </a>
                         </div>
-
-                        {/* Tabs */}
-                        <div className="border-border mb-4 flex gap-6 border-b px-2">
-                            <button
-                                className={`pb-2 font-semibold transition-colors ${activeTab === 'main_display' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
-                                onClick={() => setActiveTab('main_display')}
-                            >
-                                Main Display
-                            </button>
-                            <button
-                                className={`pb-2 font-semibold transition-colors ${activeTab === 'ruang' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
-                                onClick={() => setActiveTab('ruang')}
-                            >
-                                Berdasarkan Ruangan
-                            </button>
-                            <button
-                                className={`pb-2 font-semibold transition-colors ${activeTab === 'dosen' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
-                                onClick={() => setActiveTab('dosen')}
-                            >
-                                Berdasarkan Pendidik
-                            </button>
-                            <button
-                                className={`pb-2 font-semibold transition-colors ${activeTab === 'mapel' ? 'border-primary text-primary border-b-2' : 'text-muted-foreground hover:text-foreground'}`}
-                                onClick={() => setActiveTab('mapel')}
-                            >
-                                Berdasarkan Kelas/Mapel
-                            </button>
-                        </div>
-                        {/* Table or Grouped View */}
-                        {activeTab === 'mapel' && (
-                            <TabMapel
-                                searchQuery={searchQuery}
-                                setSearchQuery={setSearchQuery}
-                                filterStatus={filterStatus}
-                                setFilterStatus={setFilterStatus}
-                                sortConfig={sortConfig}
-                                requestSort={requestSort}
-                                sortedPlots={sortedPlots}
-                                setEditPlot={setEditPlot}
-                                setEditData={setEditData}
-                                setEditTimes={setEditTimes}
-                            />
-                        )}
-
-                        {activeTab === 'dosen' && (
-                            <TabPendidik
-                                dosens={dosens}
-                                plots={plots}
-                                rule3Active={rule3Active}
-                                setEditPlot={setEditPlot}
-                                setEditData={setEditData}
-                                setEditTimes={setEditTimes}
-                            />
-                        )}
-
-                        {activeTab === 'ruang' && (
-                            <TabRuangan
-                                ruangs={ruangs}
-                                plots={plots}
-                                waktus={waktus}
-                                setEditPlot={setEditPlot}
-                                setEditData={setEditData}
-                                setEditTimes={setEditTimes}
-                            />
-                        )}
-
-                        {activeTab === 'main_display' && (
-                            <TabMainDisplay
-                                plots={plots}
-                                waktus={waktus}
-                                rule3Active={rule3Active}
-                                setEditPlot={setEditPlot}
-                                setEditData={setEditData}
-                                setEditTimes={setEditTimes}
-                            />
-                        )}
                     </>
                 )}
-
-                {/* Edit Modal */}
-                {editPlot &&
-                    typeof document !== 'undefined' &&
-                    createPortal(
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/50 p-4">
-                            <div className="bg-card text-card-foreground border-border relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border p-6 shadow-2xl">
-                                <h3 className="mb-2 text-xl font-bold">Edit Plot Manual</h3>
-                                <p className="text-muted-foreground mb-6 text-sm">
-                                    Mapel:{' '}
-                                    <span className="text-foreground font-bold">
-                                        {editPlot.matakuliah.kode_mk} - {editPlot.matakuliah.nama_mk} ({editPlot.matakuliah.sks} PJ)
-                                    </span>
-                                </p>
-
-                                <form onSubmit={submitEdit} className="flex-1 overflow-y-auto pr-2">
-                                    <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                                        {/* Left Column: Form Inputs */}
-                                        <div className="space-y-5">
-                                            <div>
-                                                <label className="mb-1.5 block text-sm font-medium">Pendidik Utama (Bisa Diubah)</label>
-                                                <select
-                                                    className="border-input focus:ring-primary w-full rounded-md border bg-white p-2.5 text-slate-900 shadow-sm focus:ring-2 dark:bg-slate-950 dark:text-slate-50"
-                                                    value={editData.krs_dosen_id}
-                                                    onChange={(e) => setEditData('krs_dosen_id', e.target.value)}
-                                                >
-                                                    <option value="">-- Pendidik Belum Diplot --</option>
-                                                    {uniqueDosensList.map((d: any) => (
-                                                        <option key={d.id} value={d.id}>
-                                                            {d.nama_dosen}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="mb-1.5 block text-sm font-medium">Pendidik Pendamping (Opsional)</label>
-                                                <select
-                                                    className="border-input focus:ring-primary w-full rounded-md border bg-white p-2.5 text-slate-900 shadow-sm focus:ring-2 dark:bg-slate-950 dark:text-slate-50"
-                                                    value={editData.krs_dosen_kedua_id}
-                                                    onChange={(e) => setEditData('krs_dosen_kedua_id', e.target.value)}
-                                                >
-                                                    <option value="">-- Tidak Ada --</option>
-                                                    {uniqueDosensList.map((d: any) => (
-                                                        <option key={d.id} value={d.id}>
-                                                            {d.nama_dosen}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="mb-1.5 block text-sm font-medium">Ruang</label>
-                                                <select
-                                                    className="border-input focus:ring-primary w-full rounded-md border bg-white p-2.5 text-slate-900 shadow-sm focus:ring-2 dark:bg-slate-950 dark:text-slate-50"
-                                                    value={editData.krs_ruang_id}
-                                                    onChange={(e) => setEditData('krs_ruang_id', e.target.value)}
-                                                >
-                                                    <option value="">-- Pilih Ruang --</option>
-                                                    {ruangs.map((r: any) => (
-                                                        <option key={r.id} value={r.id}>
-                                                            {r.nama_ruang}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="mb-1.5 block text-sm font-medium">Hari</label>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((hariStr) => {
-                                                        // Count how many slots are taken overall on this day?
-                                                        // For now, just render nice buttons
-                                                        const isSelected = editData.hari === hariStr;
-                                                        return (
-                                                            <button
-                                                                key={hariStr}
-                                                                type="button"
-                                                                onClick={() => setEditData('hari', hariStr)}
-                                                                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-muted text-foreground'}`}
-                                                            >
-                                                                {hariStr}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                            <div className="pt-2 border-t mt-4">
-                                                <label className="flex cursor-pointer items-start gap-2 font-semibold">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="mt-1 h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500"
-                                                        checked={editData.is_locked}
-                                                        onChange={(e) => setEditData('is_locked', e.target.checked)}
-                                                    />
-                                                    <div>
-                                                        <span>Kunci Jadwal Ini (Lock)</span>
-                                                        <p className="text-xs font-normal text-muted-foreground mt-0.5">
-                                                            Jika dikunci, jadwal ini tidak akan digeser/direset oleh proses Auto Plotting.
-                                                        </p>
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        {/* Right Column: Time Grid */}
-                                        <div>
-                                            <div className="mb-3 flex items-center justify-between">
-                                                <label className="block text-sm font-medium">
-                                                    Pilih Waktu (Butuh {editPlot.matakuliah.sks} Slot)
-                                                </label>
-                                                <span className="text-muted-foreground text-xs">Klik slot untuk memilih</span>
-                                            </div>
-
-                                            <div className="grid max-h-[300px] grid-cols-2 gap-2 overflow-y-auto p-1">
-                                                {uniqueWaktuStrings.map((timeStr: string) => {
-                                                    const [mulai, selesai] = timeStr.split(' - ');
-                                                    const matchedWaktu = waktus.find((w: any) => w.jam_mulai === mulai && w.jam_selesai === selesai);
-
-                                                    let takenDosen = false;
-                                                    let takenRuang = false;
-
-                                                    if (matchedWaktu && editData.hari) {
-                                                        for (const p of plots) {
-                                                            if (p.id === editPlot.id) continue;
-                                                            if (p.hari !== editData.hari) continue;
-                                                            if (!p.krs_waktu_ids || !p.krs_waktu_ids.includes(matchedWaktu.id)) continue;
-
-                                                            if (editData.krs_dosen_id && (p.krs_dosen_id == editData.krs_dosen_id || p.krs_dosen_kedua_id == editData.krs_dosen_id)) takenDosen = true;
-                                                            if (editData.krs_dosen_kedua_id && (p.krs_dosen_id == editData.krs_dosen_kedua_id || p.krs_dosen_kedua_id == editData.krs_dosen_kedua_id)) takenDosen = true;
-                                                            if (editData.krs_ruang_id && p.krs_ruang_id == editData.krs_ruang_id) takenRuang = true;
-                                                        }
-                                                    }
-
-                                                    const isSelected = editTimes.includes(timeStr);
-
-                                                    let btnClass = 'border border-input bg-background hover:border-primary/50 text-foreground';
-                                                    let icon = null;
-
-                                                    let isJumatanSlot = false;
-                                                    if (editData.hari === 'Jumat') {
-                                                        const m = mulai.length === 5 ? mulai + ':00' : mulai;
-                                                        const s = selesai.length === 5 ? selesai + ':00' : selesai;
-                                                        if (m <= '12:19:00' && s >= '11:41:00') {
-                                                            isJumatanSlot = true;
-                                                        }
-                                                    }
-
-                                                    let btnContent: any = timeStr;
-                                                    let isDisabled = false;
-
-                                                    if (isJumatanSlot) {
-                                                        btnClass =
-                                                            'border-red-300 bg-red-100 text-red-800 dark:bg-red-900/40 dark:border-red-800 dark:text-red-300 cursor-not-allowed font-semibold';
-                                                        btnContent = (
-                                                            <>
-                                                                <span className="line-through opacity-70">{timeStr}</span> <br />
-                                                                <span className="text-[10px]">Jumatan</span>
-                                                            </>
-                                                        );
-                                                        isDisabled = true;
-                                                    } else if (isSelected) {
-                                                        if (takenDosen || takenRuang) {
-                                                            btnClass =
-                                                                'border-red-500 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 ring-2 ring-red-500 ring-offset-1';
-                                                        } else {
-                                                            btnClass =
-                                                                'border-primary bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1';
-                                                        }
-                                                    } else if (takenDosen && takenRuang) {
-                                                        btnClass =
-                                                            'border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-900 text-red-600 dark:text-red-400 opacity-60';
-                                                    } else if (takenDosen) {
-                                                        btnClass =
-                                                            'border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-900 text-orange-600 dark:text-orange-400 opacity-70';
-                                                    } else if (takenRuang) {
-                                                        btnClass =
-                                                            'border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-900 text-amber-600 dark:text-amber-400 opacity-70';
-                                                    }
-
-                                                    return (
-                                                        <button
-                                                            key={timeStr}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (isDisabled) return;
-                                                                let newTimes = [...editTimes];
-                                                                const isSelected = newTimes.includes(timeStr);
-
-                                                                if (!isSelected && (takenDosen || takenRuang)) {
-                                                                    const msg = [];
-                                                                    if (takenDosen) msg.push('Pendidik');
-                                                                    if (takenRuang) msg.push('Ruang');
-                                                                    if (!confirm(`${msg.join(' dan ')} sudah terpakai pada jam ini.\n\nYakin ingin tetap memilih (menimbulkan bentrok)?`)) {
-                                                                        return;
-                                                                    }
-                                                                }
-
-                                                                if (!isSelected) {
-                                                                    if (editPlot?.matakuliah?.sks) {
-                                                                        const sks = editPlot.matakuliah.sks;
-                                                                        const clickedIndex = uniqueWaktuStrings.indexOf(timeStr);
-                                                                        if (clickedIndex !== -1) {
-                                                                            const tempTimes = [];
-                                                                            let currentIndex = clickedIndex;
-                                                                            while (
-                                                                                tempTimes.length < sks &&
-                                                                                currentIndex < uniqueWaktuStrings.length
-                                                                            ) {
-                                                                                const tStr = uniqueWaktuStrings[currentIndex];
-                                                                                const [mStr, sStr] = tStr.split(' - ');
-                                                                                const mt = mStr.length === 5 ? mStr + ':00' : mStr;
-                                                                                const st = sStr.length === 5 ? sStr + ':00' : sStr;
-                                                                                if (
-                                                                                    !(
-                                                                                        editData.hari === 'Jumat' &&
-                                                                                        mt <= '12:19:00' &&
-                                                                                        st >= '11:41:00'
-                                                                                    )
-                                                                                ) {
-                                                                                    tempTimes.push(tStr);
-                                                                                }
-                                                                                currentIndex++;
-                                                                            }
-                                                                            newTimes = tempTimes;
-                                                                        }
-                                                                    } else {
-                                                                        newTimes.push(timeStr);
-                                                                    }
-                                                                } else {
-                                                                    newTimes = newTimes.filter((t) => t !== timeStr);
-                                                                }
-
-                                                                setEditTimes(newTimes);
-                                                                const resolvedIds = newTimes
-                                                                    .map((ts) => {
-                                                                        const [m, s] = ts.split(' - ');
-                                                                        const matched = waktus.find(
-                                                                            (w: any) => w.jam_mulai === m && w.jam_selesai === s,
-                                                                        );
-                                                                        return matched ? matched.id : null;
-                                                                    })
-                                                                    .filter((id) => id !== null);
-                                                                setEditData('krs_waktu_ids', resolvedIds as number[]);
-                                                            }}
-                                                            disabled={isDisabled}
-                                                            className={`rounded-md p-2 text-left text-xs transition-all ${btnClass}`}
-                                                        >
-                                                            <div className="flex items-center justify-between font-semibold">{btnContent}</div>
-                                                            {!isJumatanSlot && (
-                                                                <div className="mt-1 text-[10px] leading-tight">
-                                                                    {takenDosen && takenRuang
-                                                                        ? 'Pendidik & Ruang Terpakai'
-                                                                        : takenDosen
-                                                                          ? 'Pendidik Mengajar'
-                                                                          : takenRuang
-                                                                            ? 'Ruang Terpakai'
-                                                                            : 'Tersedia'}
-                                                                </div>
-                                                            )}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            <div className="text-muted-foreground bg-muted/50 border-border mt-4 flex flex-wrap gap-3 rounded border p-2 text-xs">
-                                                <div className="flex items-center gap-1">
-                                                    <span className="bg-background border-input block h-3 w-3 rounded-sm border"></span> Tersedia
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="bg-primary block h-3 w-3 rounded-sm"></span> Dipilih (OK)
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="block h-3 w-3 rounded-sm border border-orange-200 bg-orange-100"></span> Pendidik
-                                                    Terpakai
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="block h-3 w-3 rounded-sm border border-amber-200 bg-amber-100"></span> Ruang
-                                                    Terpakai
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="block h-3 w-3 rounded-sm bg-red-500"></span> Dipilih (Bentrok!)
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="border-border mt-8 flex justify-end gap-2 border-t pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditPlot(null)}
-                                            className="border-input hover:bg-muted text-foreground rounded border px-4 py-2 font-medium transition-colors"
-                                        >
-                                            Batal
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="rounded bg-blue-600 px-6 py-2 font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
-                                        >
-                                            Simpan Jadwal
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>,
-                        document.body,
-                    )}
 
                 {/* Master Data View Modal */}
                 {viewMasterData &&
@@ -2330,7 +1810,30 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                         <tr key={m.id} className="border-border hover:bg-muted/50 border-b last:border-0">
                                                             <td className="p-3 font-medium">{m.kode_mk}</td>
                                                             <td className="p-3">{m.nama_mk}</td>
-                                                            <td className="p-3">{m.kelas}</td>
+                                                            <td className="p-3">
+                                                                <input
+                                                                    type="text"
+                                                                    className="border-input bg-background w-20 rounded border p-1 text-sm"
+                                                                    defaultValue={m.kelas || ''}
+                                                                    placeholder="-"
+                                                                    onBlur={(e) => {
+                                                                        const val = e.target.value;
+                                                                        if (val !== String(m.kelas || '')) {
+                                                                            router.put(
+                                                                                route('admin.krs.master_data.matakuliah.update_kelas', m.id),
+                                                                                { kelas: val },
+                                                                                {
+                                                                                    preserveScroll: true,
+                                                                                    onSuccess: () =>
+                                                                                        alert(
+                                                                                            'Kelas Mapel ' + m.nama_mk + ' berhasil diperbarui.',
+                                                                                        ),
+                                                                                },
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </td>
                                                             <td className="p-3">{m.sks}</td>
                                                             <td className="p-3">{m.jenis_ruang || '-'}</td>
                                                             <td className="p-3">
@@ -2591,23 +2094,49 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                                                 {viewMasterData === 'ruang' &&
                                                     ruangs?.map((r: any) => (
                                                         <tr key={r.id} className="border-border hover:bg-muted/50 border-b last:border-0">
-                                                            <td className="p-3 font-medium">{r.nama_ruang}</td>
-                                                            <td className="p-3">{r.kapasitas}</td>
-                                                            <td className="p-3 flex gap-2">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const newJenis = prompt('Edit Jenis Ruang (Kecil/Besar):', r.kapasitas);
-                                                                        if (newJenis === null) return;
-                                                                        router.put(route('admin.krs.master_data.ruang.update', r.id), {
-                                                                            nama_ruang: r.nama_ruang,
-                                                                            kapasitas: newJenis,
-                                                                        }, { preserveScroll: true });
+                                                            <td className="p-3 font-medium">
+                                                                <input
+                                                                    type="text"
+                                                                    className="border-input bg-background w-full rounded border p-1 text-sm font-medium"
+                                                                    defaultValue={r.nama_ruang || ''}
+                                                                    placeholder="Nama Ruang"
+                                                                    onBlur={(e) => {
+                                                                        const val = e.target.value;
+                                                                        if (val !== String(r.nama_ruang || '')) {
+                                                                            router.put(
+                                                                                route('admin.krs.master_data.ruang.update', r.id),
+                                                                                { nama_ruang: val, kapasitas: r.kapasitas },
+                                                                                {
+                                                                                    preserveScroll: true,
+                                                                                    onSuccess: () => alert('Nama Ruang berhasil diperbarui.'),
+                                                                                }
+                                                                            );
+                                                                        }
                                                                     }}
-                                                                    className="rounded bg-blue-50 p-1.5 text-blue-500 hover:bg-blue-100 hover:text-blue-700"
-                                                                    title="Edit Jenis Ruang"
-                                                                >
-                                                                    <Edit className="h-4 w-4" />
-                                                                </button>
+                                                                />
+                                                            </td>
+                                                            <td className="p-3">
+                                                                <input
+                                                                    type="text"
+                                                                    className="border-input bg-background w-32 rounded border p-1 text-sm"
+                                                                    defaultValue={r.kapasitas || ''}
+                                                                    placeholder="Kecil/Besar"
+                                                                    onBlur={(e) => {
+                                                                        const val = e.target.value;
+                                                                        if (val !== String(r.kapasitas || '')) {
+                                                                            router.put(
+                                                                                route('admin.krs.master_data.ruang.update', r.id),
+                                                                                { nama_ruang: r.nama_ruang, kapasitas: val },
+                                                                                {
+                                                                                    preserveScroll: true,
+                                                                                    onSuccess: () => alert('Jenis Ruang berhasil diperbarui.'),
+                                                                                }
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </td>
+                                                            <td className="p-3 flex gap-2">
                                                                 <button
                                                                     onClick={() => handleDeleteMasterData('ruang', r.id)}
                                                                     className="rounded bg-red-50 p-1.5 text-red-500 hover:bg-red-100 hover:text-red-700"

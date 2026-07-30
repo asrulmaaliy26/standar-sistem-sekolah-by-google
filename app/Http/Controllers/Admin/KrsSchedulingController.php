@@ -44,57 +44,6 @@ class KrsSchedulingController extends Controller
             $dosens = KrsDosen::where('krs_period_id', $activePeriodId)->get();
             $ruangs = KrsRuang::where('krs_period_id', $activePeriodId)->get();
             $waktus = KrsWaktu::where('krs_period_id', $activePeriodId)->get();
-
-            $plots = KrsJadwalPlot::with(['matakuliah', 'dosen', 'dosenKedua', 'ruang'])
-                ->where('krs_period_id', $activePeriodId)
-                ->get();
-
-            // Hitung conflict group dinamis untuk color coding di UI
-            $roomUsage = [];
-            $dosenUsage = [];
-            foreach ($plots as $plot) {
-                if (!$plot->hari || empty($plot->krs_waktu_ids)) continue;
-                foreach ($plot->krs_waktu_ids as $wId) {
-                    if ($plot->krs_ruang_id) $roomUsage[$plot->hari][$plot->krs_ruang_id][$wId][] = $plot->id;
-                    if ($plot->krs_dosen_id) $dosenUsage[$plot->hari][$plot->krs_dosen_id][$wId][] = $plot->id;
-                }
-            }
-
-            $conflictGroups = [];
-            $groupId = 1;
-
-            $plots = $plots->map(function ($plot) use ($waktus, $roomUsage, $dosenUsage, &$conflictGroups, &$groupId) {
-                $plotWaktus = [];
-                if (!empty($plot->krs_waktu_ids)) {
-                    $plotWaktus = collect($plot->krs_waktu_ids)->map(fn($id) => $waktus->firstWhere('id', $id))->filter()->values();
-                }
-                $plot->waktu_details = $plotWaktus;
-
-                $myGroups = [];
-                if ($plot->hari && !empty($plot->krs_waktu_ids)) {
-                    foreach ($plot->krs_waktu_ids as $wId) {
-                        if ($plot->krs_ruang_id) {
-                            $users = $roomUsage[$plot->hari][$plot->krs_ruang_id][$wId] ?? [];
-                            if (count($users) > 1) {
-                                $key = "R_{$plot->hari}_{$plot->krs_ruang_id}_{$wId}";
-                                if (!isset($conflictGroups[$key])) $conflictGroups[$key] = $groupId++;
-                                $myGroups[] = $conflictGroups[$key];
-                            }
-                        }
-                        if ($plot->krs_dosen_id) {
-                            $users = $dosenUsage[$plot->hari][$plot->krs_dosen_id][$wId] ?? [];
-                            if (count($users) > 1) {
-                                $key = "D_{$plot->hari}_{$plot->krs_dosen_id}_{$wId}";
-                                if (!isset($conflictGroups[$key])) $conflictGroups[$key] = $groupId++;
-                                $myGroups[] = $conflictGroups[$key];
-                            }
-                        }
-                    }
-                }
-
-                $plot->conflict_group_id = !empty($myGroups) ? min($myGroups) : null;
-                return $plot;
-            });
         }
 
         $readiness_data = null;
@@ -178,6 +127,88 @@ class KrsSchedulingController extends Controller
             'ruangs'        => $ruangs,
             'waktus'        => $waktus,
             'readiness_data' => $readiness_data,
+        ]);
+    }
+
+    public function view(Request $request)
+    {
+        $periods = KrsPeriod::orderBy('created_at', 'desc')->get();
+        $activePeriodId = $request->query('period_id', $periods->where('is_active', true)->first()?->id ?? ($periods->first()?->id));
+        $activeTab = $request->query('tab', 'main_display');
+
+        $matakuliahs = [];
+        $plots = [];
+        $dosens = [];
+        $ruangs = [];
+        $waktus = [];
+
+        if ($activePeriodId) {
+            $matakuliahs = KrsMatakuliah::where('krs_period_id', $activePeriodId)->get();
+            $dosens = KrsDosen::where('krs_period_id', $activePeriodId)->get();
+            $ruangs = KrsRuang::where('krs_period_id', $activePeriodId)->get();
+            $waktus = KrsWaktu::where('krs_period_id', $activePeriodId)->get();
+
+            $plots = KrsJadwalPlot::with(['matakuliah', 'dosen', 'dosenKedua', 'ruang'])
+                ->where('krs_period_id', $activePeriodId)
+                ->get();
+
+            // Hitung conflict group dinamis untuk color coding di UI
+            $roomUsage = [];
+            $dosenUsage = [];
+            foreach ($plots as $plot) {
+                if (!$plot->hari || empty($plot->krs_waktu_ids)) continue;
+                foreach ($plot->krs_waktu_ids as $wId) {
+                    if ($plot->krs_ruang_id) $roomUsage[$plot->hari][$plot->krs_ruang_id][$wId][] = $plot->id;
+                    if ($plot->krs_dosen_id) $dosenUsage[$plot->hari][$plot->krs_dosen_id][$wId][] = $plot->id;
+                }
+            }
+
+            $conflictGroups = [];
+            $groupId = 1;
+
+            $plots = $plots->map(function ($plot) use ($waktus, $roomUsage, $dosenUsage, &$conflictGroups, &$groupId) {
+                $plotWaktus = [];
+                if (!empty($plot->krs_waktu_ids)) {
+                    $plotWaktus = collect($plot->krs_waktu_ids)->map(fn($id) => $waktus->firstWhere('id', $id))->filter()->values();
+                }
+                $plot->waktu_details = $plotWaktus;
+
+                $myGroups = [];
+                if ($plot->hari && !empty($plot->krs_waktu_ids)) {
+                    foreach ($plot->krs_waktu_ids as $wId) {
+                        if ($plot->krs_ruang_id) {
+                            $users = $roomUsage[$plot->hari][$plot->krs_ruang_id][$wId] ?? [];
+                            if (count($users) > 1) {
+                                $key = "R_{$plot->hari}_{$plot->krs_ruang_id}_{$wId}";
+                                if (!isset($conflictGroups[$key])) $conflictGroups[$key] = $groupId++;
+                                $myGroups[] = $conflictGroups[$key];
+                            }
+                        }
+                        if ($plot->krs_dosen_id) {
+                            $users = $dosenUsage[$plot->hari][$plot->krs_dosen_id][$wId] ?? [];
+                            if (count($users) > 1) {
+                                $key = "D_{$plot->hari}_{$plot->krs_dosen_id}_{$wId}";
+                                if (!isset($conflictGroups[$key])) $conflictGroups[$key] = $groupId++;
+                                $myGroups[] = $conflictGroups[$key];
+                            }
+                        }
+                    }
+                }
+
+                $plot->conflict_group_id = !empty($myGroups) ? min($myGroups) : null;
+                return $plot;
+            });
+        }
+
+        return Inertia::render('Admin/Krs/View', [
+            'periods'       => $periods,
+            'activePeriodId' => (int) $activePeriodId,
+            'activeTab'     => $activeTab,
+            'plots'         => $plots,
+            'matakuliahs'   => $matakuliahs,
+            'dosens'        => $dosens,
+            'ruangs'        => $ruangs,
+            'waktus'        => $waktus,
         ]);
     }
 
@@ -669,6 +700,26 @@ class KrsSchedulingController extends Controller
         $mk->save();
 
         return redirect()->back()->with('success', 'Semester Matakuliah berhasil diperbarui.');
+    }
+
+    public function updateMatakuliahKelas(Request $request, int $id)
+    {
+        $mk = \App\Models\KrsMatakuliah::findOrFail($id);
+        
+        $oldKelas = $mk->kelas;
+        $newKelas = $request->kelas;
+
+        if ($oldKelas !== $newKelas) {
+            $mk->kelas = $newKelas;
+            $mk->save();
+
+            \App\Models\KrsDosen::where('krs_period_id', $mk->krs_period_id)
+                ->where('kode_mk', $mk->kode_mk)
+                ->where('kelas', $oldKelas)
+                ->update(['kelas' => $newKelas]);
+        }
+
+        return redirect()->back()->with('success', 'Kelas Matakuliah & Pendidik terkait berhasil diperbarui.');
     }
 
     public function autoCalculateMaxSks(Request $request)
