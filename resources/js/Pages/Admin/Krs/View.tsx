@@ -517,7 +517,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
         if (activeTab === 'mapel' || activeTab === 'main_display') {
             const wsData = [header];
             sortedPlots.forEach(p => {
-                const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
+                const pendidik = [p.dosen?.nama_dosen, (p.dosenKedua || (p as any).dosen_kedua)?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
                 const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
                 const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
                 const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
@@ -560,7 +560,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                     assigned = true;
                 };
                 if (p.dosen || p.krs_dosen_id) assign(p.dosen || dosens.find((d: any) => d.id === p.krs_dosen_id));
-                if (p.dosenKedua || p.krs_dosen_kedua_id) assign(p.dosenKedua || dosens.find((d: any) => d.id === p.krs_dosen_kedua_id));
+                if (p.dosenKedua || (p as any).dosen_kedua || p.krs_dosen_kedua_id) assign(p.dosenKedua || (p as any).dosen_kedua || dosens.find((d: any) => d.id === p.krs_dosen_kedua_id));
                 if (!assigned) assign(null);
             });
 
@@ -569,7 +569,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                     wsData.push([g.nama_dosen, "-", "Belum ada kelas", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]);
                 } else {
                     g.plots.forEach((p: any) => {
-                        const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
+                        const pendidik = [p.dosen?.nama_dosen, (p.dosenKedua || (p as any).dosen_kedua)?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
                         const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
                         const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
                         const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
@@ -621,7 +621,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                 } else {
                     const sorted = [...g.plots].sort((a,b) => (a.hari||'').localeCompare(b.hari||''));
                     sorted.forEach(p => {
-                        const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
+                        const pendidik = [p.dosen?.nama_dosen, (p.dosenKedua || (p as any).dosen_kedua)?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
                         const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
                         const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
                         const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
@@ -668,7 +668,7 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
                     return a.waktu_details[0].jam_mulai.localeCompare(b.waktu_details[0].jam_mulai);
                 });
                 sorted.forEach((p: any) => {
-                    const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
+                    const pendidik = [p.dosen?.nama_dosen, (p.dosenKedua || (p as any).dosen_kedua)?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
                     const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
                     const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
                     const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';

@@ -381,10 +381,17 @@ class KrsCsvService
                 ->first();
                 
             if ($mk) {
-                KrsJadwalPlot::where('krs_period_id', $periodId)
+                $plot = KrsJadwalPlot::where('krs_period_id', $periodId)
                     ->where('krs_matakuliah_id', $mk->id)
-                    ->whereNull('krs_dosen_id')
-                    ->update(['krs_dosen_id' => $dosen->id]);
+                    ->first();
+
+                if ($plot) {
+                    if (is_null($plot->krs_dosen_id)) {
+                        $plot->update(['krs_dosen_id' => $dosen->id]);
+                    } elseif (is_null($plot->krs_dosen_kedua_id) && $plot->krs_dosen_id != $dosen->id) {
+                        $plot->update(['krs_dosen_kedua_id' => $dosen->id]);
+                    }
+                }
             }
             return;
         }
