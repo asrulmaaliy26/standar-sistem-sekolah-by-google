@@ -542,7 +542,8 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
             XLSX.writeFile(wb, `Jadwal_Berdasarkan_Mapel_${date}.xlsx`);
         } 
         else if (activeTab === 'dosen') {
-            const wsData = [header];
+            const headerDosen = ["Nama Pendidik (Filter)", "Kode MP", "Nama MP", "Kelas", "SKS Kelas", "Beban SKS", "Pendidik Terplot", "Semester", "Hari", "Jam Mulai", "Jam Akhir", "Ruang", "Jenis Ruang", "Status", "Pesan Konflik"];
+            const wsData = [headerDosen];
             const groups = new Map();
             dosens.forEach(d => {
                 const name = d.nama_dosen?.trim();
@@ -565,18 +566,23 @@ export default function KrsIndex({ periods, activePeriodId, plots, matakuliahs, 
 
             groups.forEach((g) => {
                 if (g.plots.length === 0) {
-                    wsData.push(["-", "Belum ada kelas", "-", "-", g.nama_dosen, "-", "-", "-", "-", "-", "-", "-", "-"]);
+                    wsData.push([g.nama_dosen, "-", "Belum ada kelas", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]);
                 } else {
                     g.plots.forEach((p: any) => {
                         const pendidik = [p.dosen?.nama_dosen, p.dosenKedua?.nama_dosen].filter(Boolean).join(' & ') || 'Belum Diplot';
                         const ruang = p.ruang ? `${p.ruang.nama_ruang} (${p.ruang.kapasitas || '-'})` : '-';
                         const jamMulai = p.waktu_details && p.waktu_details.length ? p.waktu_details[0].jam_mulai : '-';
                         const jamAkhir = p.waktu_details && p.waktu_details.length ? p.waktu_details[p.waktu_details.length - 1].jam_selesai : '-';
+                        const divisor = p.krs_dosen_kedua_id ? 2 : 1;
+                        const bebanSks = p.matakuliah?.sks ? (p.matakuliah.sks / divisor) : '-';
+
                         wsData.push([
+                            g.nama_dosen,
                             p.matakuliah?.kode_mk || '-',
                             p.matakuliah?.nama_mk || '-',
                             p.matakuliah?.kelas || '-',
                             p.matakuliah?.sks || '-',
+                            bebanSks,
                             pendidik,
                             p.matakuliah?.semester || '-',
                             p.hari || '-',

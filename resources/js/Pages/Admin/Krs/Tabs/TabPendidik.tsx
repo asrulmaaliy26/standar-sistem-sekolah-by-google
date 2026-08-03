@@ -15,7 +15,7 @@ interface Plot {
     conflict_group_id?: number | null;
     matakuliah: { kode_mk: string; nama_mk: string; kelas: string; sks: number; jenis_ruang: string | null };
     dosen?: { id: number; nama_dosen: string };
-    dosen_kedua?: { id: number; nama_dosen: string };
+    dosenKedua?: { id: number; nama_dosen: string };
     krs_dosen_kedua_id?: number | null;
     ruang?: { id: number; nama_ruang: string; kapasitas: string | null };
     waktu_details?: { id: number; hari: string; jam_mulai: string; jam_selesai: string }[];
@@ -74,14 +74,14 @@ export default function TabPendidik({
         const addedSks = p.matakuliah.sks / divisor;
         let isPlottedToDosen = false;
 
-        const assignToDosen = (dosenId: number | null, dosenObj: any) => {
+        const assignToDosen = (dosenId: number | null | string, dosenObj: any) => {
             if (!dosenId) return;
             isPlottedToDosen = true;
             let name = 'Tidak Diketahui';
             if (dosenObj) {
                 name = dosenObj.nama_dosen.trim();
             } else {
-                const d = dosens?.find((d: any) => d.id === dosenId);
+                const d = dosens?.find((d: any) => d.id == dosenId); // Gunakan == agar string/int cocok
                 if (d) name = d.nama_dosen.trim();
             }
             if (!groups.has(name)) {
@@ -101,7 +101,7 @@ export default function TabPendidik({
         };
 
         assignToDosen(p.krs_dosen_id, p.dosen);
-        assignToDosen(p.krs_dosen_kedua_id, p.dosen_kedua);
+        assignToDosen(p.krs_dosen_kedua_id, p.dosenKedua || (p as any).dosen_kedua);
 
         if (!isPlottedToDosen) {
             // Plot is fully unassigned to any dosen
