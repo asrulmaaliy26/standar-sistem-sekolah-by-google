@@ -48,7 +48,7 @@ class RombelController extends Controller
 
     public function show(Rombel $rombel)
     {
-        $rombel->load('jenjang');
+        $rombel->load('jenjang', 'classroomLinks.guru');
 
         $users = $rombel->users()
             ->orderBy('name')
@@ -61,7 +61,19 @@ class RombelController extends Controller
                 'lokasi' => $rombel->lokasi,
                 'jenjang' => $rombel->jenjang ? $rombel->jenjang->nama : 'Tanpa Jenjang'
             ],
-            'users' => $users
+            'users' => $users,
+            'classroomLinks' => $rombel->classroomLinks->map(fn($c) => [
+                'id' => $c->id,
+                'mapel' => $c->mapel,
+                'link' => $c->link,
+                'link_uts' => $c->link_uts,
+                'link_uas' => $c->link_uas,
+                'keterangan' => $c->keterangan,
+                'guru' => $c->guru ? $c->guru->name : 'Belum ditentukan',
+                'hari_belajar' => $c->hari_belajar,
+                'jam_mulai' => $c->jam_mulai ? \Carbon\Carbon::parse($c->jam_mulai)->format('H:i') : null,
+                'jam_selesai' => $c->jam_selesai ? \Carbon\Carbon::parse($c->jam_selesai)->format('H:i') : null,
+            ])
         ]);
     }
 

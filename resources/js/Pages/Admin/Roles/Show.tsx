@@ -97,50 +97,52 @@ export default function Show({ role, users }: ShowProps) {
 
                         {users.data.length > 0 ? (
                             <>
-                                <table className="min-w-full divide-y divide-border">
-                                    <thead className="bg-muted">
-                                        <tr>
-                                            <th
-                                                scope="col"
-                                                className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-foreground sm:pl-6"
-                                            >
-                                                Name
-                                            </th>
-                                            <th
-                                                scope="col"
-                                                className="px-3 py-3.5 text-left text-sm font-semibold text-foreground"
-                                            >
-                                                Email
-                                            </th>
-                                            <th
-                                                scope="col"
-                                                className="relative py-3.5 pl-3 pr-4 sm:pr-6"
-                                            >
-                                                <span className="sr-only">Actions</span>
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border bg-card">
-                                        {users.data.map((user) => (
-                                            <tr key={user.id}>
-                                                <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-foreground sm:pl-6">
-                                                    {user.name}
-                                                </td>
-                                                <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
-                                                    {user.email}
-                                                </td>
-                                                <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                                    <Link
-                                                        href={route('admin.users.show', user.id)}
-                                                        className="text-primary hover:text-primary/80"
-                                                    >
-                                                        View
-                                                    </Link>
-                                                </td>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-border">
+                                        <thead className="bg-muted">
+                                            <tr>
+                                                <th
+                                                    scope="col"
+                                                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-foreground sm:pl-6"
+                                                >
+                                                    Name
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    className="px-3 py-3.5 text-left text-sm font-semibold text-foreground"
+                                                >
+                                                    Email
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    className="relative py-3.5 pl-3 pr-4 sm:pr-6"
+                                                >
+                                                    <span className="sr-only">Actions</span>
+                                                </th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-border bg-card">
+                                            {users.data.map((user) => (
+                                                <tr key={user.id}>
+                                                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-foreground sm:pl-6">
+                                                        {user.name}
+                                                    </td>
+                                                    <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
+                                                        {user.email}
+                                                    </td>
+                                                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                                        <Link
+                                                            href={route('admin.users.show', user.id)}
+                                                            className="text-primary hover:text-primary/80"
+                                                        >
+                                                            View
+                                                        </Link>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
 
                                 {/* Pagination */}
                                 {users.meta && users.meta.last_page > 1 && (

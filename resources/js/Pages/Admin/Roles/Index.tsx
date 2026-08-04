@@ -72,7 +72,7 @@ export default function RolesIndex({ roles }: RolesIndexProps) {
 
                 <div>
                     {/* Roles Table */}
-                    <div className="overflow-hidden shadow ring-1 ring-border sm:rounded-lg">
+                    <div className="overflow-x-auto shadow ring-1 ring-border sm:rounded-lg">
                         <table className="min-w-full divide-y divide-border">
                             <thead className="bg-muted">
                                 <tr>

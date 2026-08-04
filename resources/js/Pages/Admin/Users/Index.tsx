@@ -9,6 +9,7 @@ interface User {
     email_verified_at: string | null
     roles: string[]
     jabatan: { id: number; name: string }[]
+    rombel_name?: string | null
     created_at: string
 }
 
@@ -185,7 +186,7 @@ export default function UsersIndex({ users, roles, totalUsers, filters }: UsersI
 
 
                 {/* ── Table ── */}
-                <div className="overflow-hidden shadow ring-1 ring-border sm:rounded-lg">
+                <div className="overflow-x-auto shadow ring-1 ring-border sm:rounded-lg">
                     <table className="min-w-full divide-y divide-border">
                         <thead className="bg-muted">
                             <tr>
@@ -217,7 +218,9 @@ export default function UsersIndex({ users, roles, totalUsers, filters }: UsersI
                                                             : role === 'guru' || role === 'pendidik'
                                                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
                                                             : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                                                    }`}>{role}</span>
+                                                    }`}>
+                                                        {role} {role === 'murid' && user.rombel_name ? `- Kelas ${user.rombel_name}` : ''}
+                                                    </span>
                                                 ))
                                                 : <span className="text-muted-foreground text-xs">—</span>
                                             }

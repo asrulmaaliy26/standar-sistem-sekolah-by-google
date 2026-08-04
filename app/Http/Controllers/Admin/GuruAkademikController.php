@@ -160,6 +160,9 @@ class GuruAkademikController extends Controller
             'link_uts' => 'nullable|url|max:2000',
             'link_uas' => 'nullable|url|max:2000',
             'keterangan' => 'nullable|string|max:1000',
+            'hari_belajar' => 'nullable|string|max:20',
+            'jam_mulai' => 'nullable|date_format:H:i',
+            'jam_selesai' => 'nullable|date_format:H:i',
         ]);
 
         $link->update([
@@ -169,6 +172,9 @@ class GuruAkademikController extends Controller
             'link_uts' => $validated['link_uts'] ?? null,
             'link_uas' => $validated['link_uas'] ?? null,
             'keterangan' => $validated['keterangan'],
+            'hari_belajar' => $validated['hari_belajar'] ?? null,
+            'jam_mulai' => $validated['jam_mulai'] ?? null,
+            'jam_selesai' => $validated['jam_selesai'] ?? null,
         ]);
 
         return redirect()->back()->with('success', 'Tautan kelas berhasil diperbarui.');

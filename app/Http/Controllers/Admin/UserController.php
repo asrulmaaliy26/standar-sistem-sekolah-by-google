@@ -24,7 +24,7 @@ class UserController extends Controller
         // per_page = 0 berarti tampilkan semua
         $perPage = $perPageReq === 0 ? PHP_INT_MAX : max(1, $perPageReq);
 
-        $query = User::with('roles', 'jabatan')
+        $query = User::with('roles', 'jabatan', 'rombel')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q2) use ($search) {
                     $q2->where('name', 'like', "%{$search}%")
@@ -46,6 +46,7 @@ class UserController extends Controller
             'email_verified_at'=> $user->email_verified_at,
             'roles'            => $user->roles->pluck('name'),
             'jabatan'          => $user->jabatan->map(fn($j) => ['id' => $j->id, 'name' => $j->name])->values(),
+            'rombel_name'      => $user->rombel ? $user->rombel->name : null,
             'created_at'       => $user->created_at->format('Y-m-d H:i'),
         ]);
 
