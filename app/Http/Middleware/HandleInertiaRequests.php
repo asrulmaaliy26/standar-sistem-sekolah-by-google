@@ -90,6 +90,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'settings' => [
                 'kartu_santri_aktif' => \App\Models\AppSetting::kartuSantriAktif(),
+                'db_sync_enabled'    => \App\Services\DatabaseSyncService::isLocal()
+                    && ! empty(\App\Services\DatabaseSyncService::getVpsUrl()),
             ],
         ];
     }

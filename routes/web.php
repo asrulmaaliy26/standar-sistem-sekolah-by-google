@@ -68,6 +68,11 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/guru.php';
 require __DIR__ . '/siswa.php';
 
+// Database sync: endpoint export di VPS (dijaga header X-Sync-Secret)
+Route::get('/api/db-sync/export', [\App\Http\Controllers\Admin\DatabaseSyncController::class, 'export'])
+    ->middleware('throttle:5,1')
+    ->name('db-sync.export');
+
 // API route for external applications (like PsychoApps) to fetch signatures
 Route::get('/api/sertifikat/penandatangan', [\App\Http\Controllers\Persuratan\SertifikatController::class, 'apiPenandatangan']);
 

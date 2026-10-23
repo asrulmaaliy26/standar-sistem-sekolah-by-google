@@ -50,6 +50,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('settings/kartu-santri-toggle', [AppSettingController::class, 'toggleKartuSantri'])
         ->name('settings.kartu-santri-toggle');
 
+    // Tarik database dari VPS (menimpa database lokal)
+    Route::post('db-sync/pull', [\App\Http\Controllers\Admin\DatabaseSyncController::class, 'pull'])
+        ->name('db-sync.pull');
+
 });
 
 /**

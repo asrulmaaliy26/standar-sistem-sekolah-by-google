@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Users, Shield, School, Calendar, ClipboardList, Briefcase, LayoutGrid, Layers, CreditCard, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Shield, School, Calendar, ClipboardList, Briefcase, LayoutGrid, Layers, CreditCard, CheckCircle, XCircle, DatabaseZap, Loader2 } from 'lucide-react';
 import { type SharedData } from '@/types';
 
 interface AdminDashboardProps {
@@ -12,6 +12,7 @@ interface AdminDashboardProps {
     };
     settings: {
         kartu_santri_aktif: boolean;
+        db_sync_enabled?: boolean;
     };
 }
 
@@ -40,6 +41,18 @@ export default function AdminDashboard({ stats, settings }: AdminDashboardProps)
     const toggleKartuSantri = () => {
         router.post(route('admin.settings.kartu-santri-toggle'), {}, {
             preserveScroll: true,
+        });
+    };
+
+    const [syncing, setSyncing] = React.useState(false);
+    const dbSyncEnabled = settings?.db_sync_enabled ?? false;
+
+    const pullFromVps = () => {
+        if (!confirm('PERINGATAN: Seluruh data di database LOKAL akan DIHAPUS dan diganti dengan data terbaru dari VPS.\n\nLanjutkan?')) return;
+        if (!confirm('Yakin? Tindakan ini tidak dapat dibatalkan. Proses bisa memakan waktu beberapa menit.')) return;
+        setSyncing(true);
+        router.post(route('admin.db-sync.pull'), {}, {
+            onFinish: () => setSyncing(false),
         });
     };
 
@@ -143,6 +156,28 @@ export default function AdminDashboard({ stats, settings }: AdminDashboardProps)
                                     )}
                                 </div>
                             </div>
+
+                            {/* Tarik Data dari VPS (khusus lokal) */}
+                            {dbSyncEnabled && (
+                                <div className="relative overflow-hidden rounded-2xl border border-sky-200 bg-sky-50 dark:border-sky-800/40 dark:bg-sky-950/20 p-5 shadow-sm">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-900/50 flex items-center justify-center flex-shrink-0">
+                                            <DatabaseZap className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-sm text-foreground">Tarik Data dari VPS</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">Ganti database lokal dengan data terbaru dari VPS</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={pullFromVps}
+                                        disabled={syncing}
+                                        className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-sky-700 disabled:opacity-60 transition-colors"
+                                    >
+                                        {syncing ? <><Loader2 className="w-4 h-4 animate-spin" /> Menarik data...</> : 'Tarik & Timpa Database Lokal'}
+                                    </button>
+                                </div>
+                            )}
 
                         </div>
                     </div>
