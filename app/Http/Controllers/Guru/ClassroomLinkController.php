@@ -16,9 +16,13 @@ class ClassroomLinkController extends Controller
      */
     public function index()
     {
-        // Hanya ambil link yang dibuat oleh guru yang sedang login
+        // Hanya ambil link formal yang dibuat oleh guru yang sedang login
         $links = ClassroomLink::with('rombel.jenjang')
             ->where('guru_id', auth()->id())
+            ->where(function ($q) {
+                $q->where('kategori', 'formal')->orWhereNull('kategori');
+            })
+            ->whereNotNull('rombel_id')
             ->latest()
             ->get();
             
@@ -58,6 +62,7 @@ class ClassroomLinkController extends Controller
         ClassroomLink::create([
             'guru_id'      => auth()->id(),
             'rombel_id'    => $validated['rombel_id'],
+            'kategori'     => 'formal',
             'mapel'        => $validated['mapel'],
             'link'         => $validated['link'] ?? null,
             'link_uts'     => $validated['link_uts'] ?? null,

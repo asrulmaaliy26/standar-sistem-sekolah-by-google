@@ -35,6 +35,7 @@ class AppSetting extends Model
      */
     public static function kartuSantriAktif(): bool
     {
-        return (bool) static::get('kartu_santri_aktif', '1');
+        $val = static::get('kartu_santri_aktif', '1');
+        return filter_var($val, FILTER_VALIDATE_BOOLEAN);
     }
 }

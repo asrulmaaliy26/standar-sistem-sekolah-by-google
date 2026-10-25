@@ -12,14 +12,38 @@ interface AppLayoutProps {
 
 function RombelPopup() {
     const { auth, rombels } = usePage().props as any;
-    const [isOpen, setIsOpen] = useState(true);
+    const activeMode = auth?.user?.active_mode;
+    const isMuridMode = activeMode?.value === 'murid';
+    const isAdmin = Boolean(auth?.user?.is_admin || auth?.user?.roles?.includes('superadmin'));
+
+    // Hanya buka otomatis jika sedang aktif dalam mode murid dan belum punya kelas
+    const [isOpen, setIsOpen] = useState(() => {
+        if (!auth?.user) return false;
+        if (!isMuridMode) return false;
+        if (auth.user.rombel_id !== null) return false;
+        return true;
+    });
     const [selectedRombel, setSelectedRombel] = useState('');
     const [processing, setProcessing] = useState(false);
 
-    // Only show if user is murid, rombel_id is null, and rombels are loaded
-    const activeMode = auth?.user?.active_mode;
-    const isMurid = activeMode?.value === 'murid' || auth?.user?.roles?.includes('murid');
-    if (!auth?.user || !isMurid || auth.user.rombel_id !== null || !rombels?.length || !isOpen) {
+    useEffect(() => {
+        const handleOpen = () => setIsOpen(true);
+        window.addEventListener('open-rombel-popup', handleOpen);
+        return () => window.removeEventListener('open-rombel-popup', handleOpen);
+    }, []);
+
+    // Jangan tampilkan jika modal ditutup atau user belum login
+    if (!auth?.user || !isOpen) {
+        return null;
+    }
+
+    // Jangan pernah tampilkan di halaman admin
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+        return null;
+    }
+
+    // Jika bukan dalam mode murid dan bukan admin yang membuka manual
+    if (!isMuridMode && !isAdmin) {
         return null;
     }
 
@@ -65,44 +89,76 @@ function RombelPopup() {
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                    <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-6 custom-scrollbar">
-                        {Object.entries(groupedRombels).map(([jenjangName, jenjangRombels]: [string, any]) => (
-                            <div key={jenjangName} className="space-y-3">
-                                <h3 className="font-semibold text-lg text-foreground border-b pb-2">{jenjangName}</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {jenjangRombels.map((r: any) => (
-                                        <button
-                                            key={r.id}
-                                            type="button"
-                                            onClick={() => setSelectedRombel(r.id)}
-                                            className={`p-3 text-sm font-medium rounded-xl border transition-all ${
-                                                selectedRombel === r.id 
-                                                ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-300' 
-                                                : 'bg-card border-border hover:border-blue-300 hover:bg-blue-50/50 text-foreground dark:hover:bg-blue-900/20'
-                                            }`}
-                                        >
-                                            {r.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                {!rombels || rombels.length === 0 ? (
+                    <div className="py-8 px-4 text-center space-y-4">
+                        <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/40 text-amber-600 rounded-2xl flex items-center justify-center mx-auto">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-foreground">Data Kelas Belum Tersedia</h3>
+                        <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                            {isAdmin
+                                ? 'Belum ada data rombongan belajar (kelas) yang ditambahkan di database. Anda dapat menambahkan data Jenjang & Kelas melalui Panel Admin.'
+                                : 'Belum ada kelas yang terdaftar di sistem sekolah saat ini. Silakan hubungi Administrator atau Guru untuk menambahkan data kelas.'}
+                        </p>
+                        <div className="pt-2 flex items-center justify-center gap-3">
+                            {isAdmin && (
+                                <Link
+                                    href="/admin/rombels"
+                                    onClick={() => setIsOpen(false)}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md transition-all"
+                                >
+                                    Kelola Data Kelas
+                                </Link>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setIsOpen(false)}
+                                className="px-5 py-2.5 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-sm font-semibold transition-colors"
+                            >
+                                Tutup
+                            </button>
+                        </div>
                     </div>
-                    
-                    <button
-                        type="submit"
-                        disabled={!selectedRombel || processing}
-                        className="w-full shrink-0 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
-                    >
-                        {processing ? (
-                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        ) : 'Simpan Kelas'}
-                    </button>
-                </form>
+                ) : (
+                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                        <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-6 custom-scrollbar">
+                            {Object.entries(groupedRombels).map(([jenjangName, jenjangRombels]: [string, any]) => (
+                                <div key={jenjangName} className="space-y-3">
+                                    <h3 className="font-semibold text-lg text-foreground border-b pb-2">{jenjangName}</h3>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        {jenjangRombels.map((r: any) => (
+                                            <button
+                                                key={r.id}
+                                                type="button"
+                                                onClick={() => setSelectedRombel(r.id)}
+                                                className={`p-3 text-sm font-medium rounded-xl border transition-all ${
+                                                    selectedRombel === r.id 
+                                                    ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-300' 
+                                                    : 'bg-card border-border hover:border-blue-300 hover:bg-blue-50/50 text-foreground dark:hover:bg-blue-900/20'
+                                                }`}
+                                            >
+                                                {r.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <button
+                            type="submit"
+                            disabled={!selectedRombel || processing}
+                            className="w-full shrink-0 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                        >
+                            {processing ? (
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            ) : 'Simpan Kelas'}
+                        </button>
+                    </form>
+                )}
             </div>
         </div>
     );
@@ -119,11 +175,16 @@ function VerificationPopup() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const activeMode = auth?.user?.active_mode;
-    const isMurid = activeMode?.value === 'murid' || auth?.user?.roles?.includes('murid');
+    const isMuridMode = activeMode?.value === 'murid';
     const isSettingActive = settings?.kartu_santri_aktif ?? true;
-    
-    // Show if murid, rombel is null, NOT verified yet, and setting is active
-    if (!auth?.user || !isMurid || auth.user.rombel_id !== null || auth.user.is_verified || !isOpen || !isSettingActive) {
+
+    // Jangan pernah tampilkan di halaman admin
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+        return null;
+    }
+
+    // Show ONLY if active mode is murid, rombel is null, NOT verified yet, and setting is active
+    if (!auth?.user || !isMuridMode || auth.user.rombel_id !== null || auth.user.is_verified || !isOpen || !isSettingActive) {
         return null;
     }
 

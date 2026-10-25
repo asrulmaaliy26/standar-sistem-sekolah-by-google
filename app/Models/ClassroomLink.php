@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ClassroomLink extends Model
 {
     protected $fillable = [
-        'guru_id', 'rombel_id', 'mapel', 'link',
+        'guru_id', 'rombel_id', 'madin_kelas_id', 'kategori', 'mapel', 'link',
         'link_uts', 'uts_mulai', 'uts_tutup', 'uts_durasi',
         'link_uas', 'uas_mulai', 'uas_tutup', 'uas_durasi',
         'keterangan',
@@ -22,5 +22,10 @@ class ClassroomLink extends Model
     public function rombel()
     {
         return $this->belongsTo(Rombel::class);
+    }
+
+    public function madinKelas()
+    {
+        return $this->belongsTo(MadinKelas::class, 'madin_kelas_id');
     }
 }

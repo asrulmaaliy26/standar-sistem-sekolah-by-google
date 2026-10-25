@@ -15,6 +15,9 @@ import {
     Send,
     CalendarCheck,
     ShieldAlert,
+    Home,
+    BookOpen,
+    ClipboardCheck,
 } from 'lucide-react';
 
 /**
@@ -45,7 +48,7 @@ export const commonNavItems: NavItem[] = [
 export const roleNavigation: Record<string, NavItem[]> = {
     superadmin: [
         {
-            title: 'Dashboard',
+            title: 'Panel Admin',
             href: '/admin/dashboard',
             icon: LayoutDashboard,
         },
@@ -53,6 +56,31 @@ export const roleNavigation: Record<string, NavItem[]> = {
             title: 'Pelanggaran',
             href: 'https://docs.google.com/spreadsheets/d/1EleHQr7y9eGg5l3NqnTSUfh8qMpTjM7L-lKDBw9Hql4/edit?usp=sharing',
             icon: ClipboardList,
+        },
+        {
+            title: 'Kamar Pondok',
+            href: '/admin/kamars',
+            icon: Home,
+        },
+        {
+            title: 'Kelas Madin',
+            href: '/admin/madin-kelas',
+            icon: BookOpen,
+        },
+        {
+            title: 'Setoran Pondok',
+            href: '/admin/pondok/setoran',
+            icon: ClipboardCheck,
+        },
+        {
+            title: 'Data Jenjang',
+            href: '/admin/jenjang',
+            icon: Layers,
+        },
+        {
+            title: 'Data Kelas',
+            href: '/admin/rombels',
+            icon: School,
         },
         {
             title: 'Manajemen User',
@@ -78,7 +106,7 @@ export const roleNavigation: Record<string, NavItem[]> = {
 
     'admin akademik': [
         {
-            title: 'Dashboard',
+            title: 'Panel Admin',
             href: '/admin/dashboard',
             icon: LayoutDashboard,
         },
@@ -86,6 +114,21 @@ export const roleNavigation: Record<string, NavItem[]> = {
             title: 'Pelanggaran',
             href: 'https://docs.google.com/spreadsheets/d/1EleHQr7y9eGg5l3NqnTSUfh8qMpTjM7L-lKDBw9Hql4/edit?usp=sharing',
             icon: ClipboardList,
+        },
+        {
+            title: 'Kamar Pondok',
+            href: '/admin/kamars',
+            icon: Home,
+        },
+        {
+            title: 'Kelas Madin',
+            href: '/admin/madin-kelas',
+            icon: BookOpen,
+        },
+        {
+            title: 'Setoran Pondok',
+            href: '/admin/pondok/setoran',
+            icon: ClipboardCheck,
         },
         {
             title: 'Data Jenjang',
@@ -162,9 +205,19 @@ export const roleNavigation: Record<string, NavItem[]> = {
             icon: ClipboardList,
         },
         {
-            title: 'Tautan Kelas',
+            title: 'Kelas Formal',
             href: '/guru/classroom-links',
-            icon: Link,
+            icon: School,
+        },
+        {
+            title: 'Pondok Pesantren',
+            href: '/guru/pondok',
+            icon: Home,
+        },
+        {
+            title: 'Madrasah Diniyah',
+            href: '/guru/madin',
+            icon: BookOpen,
         },
         {
             title: 'Penjaga Ujian',
@@ -175,9 +228,19 @@ export const roleNavigation: Record<string, NavItem[]> = {
 
     murid: [
         {
-            title: 'Daftar Kelas',
+            title: 'Kelas Formal',
             href: '/siswa/classroom-links',
-            icon: Link,
+            icon: School,
+        },
+        {
+            title: 'Pondok Pesantren',
+            href: '/siswa/pondok',
+            icon: Home,
+        },
+        {
+            title: 'Madrasah Diniyah',
+            href: '/siswa/madin',
+            icon: BookOpen,
         },
     ],
 

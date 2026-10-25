@@ -12,6 +12,13 @@ Route::get('/', function () {
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 
+if (app()->environment('local')) {
+    Route::get('/dev-login/{id}', function ($id) {
+        \Illuminate\Support\Facades\Auth::loginUsingId($id);
+        return redirect()->to('/dashboard');
+    })->name('dev.login');
+}
+
 
 Route::middleware(['auth', 'verified'])->group(function () {
 

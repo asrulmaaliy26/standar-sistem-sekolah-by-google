@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage, Link } from '@inertiajs/react';
-import { LayoutGrid, FolderArchive, BookOpen, School, Users, Calendar, Shield, Clock, ExternalLink } from 'lucide-react';
+import { LayoutGrid, FolderArchive, BookOpen, School, Users, Calendar, Shield, Clock, ExternalLink, Settings } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
@@ -10,6 +10,7 @@ const QUICK_LINKS = [
 ];
 
 const ADMIN_LINKS = [
+    { title: 'Panel Admin & Pengaturan', desc: 'Pengaturan sistem & sinkronisasi VPS', href: '/admin/dashboard', icon: Settings, color: 'from-purple-500 to-indigo-600', bg: 'bg-purple-50 dark:bg-purple-950/30', text: 'text-purple-600' },
     { title: 'Manajemen User', desc: 'Kelola akun pengguna', href: '/admin/users', icon: Users, color: 'from-blue-500 to-indigo-600', bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-600' },
     { title: 'Data Kelas', desc: 'Kelola rombongan belajar', href: '/admin/rombels', icon: School, color: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-600' },
     { title: 'Kalender Kegiatan', desc: 'Jadwal dan agenda sekolah', href: '/calendar', icon: Calendar, color: 'from-orange-500 to-rose-500', bg: 'bg-orange-50 dark:bg-orange-950/30', text: 'text-orange-600' },

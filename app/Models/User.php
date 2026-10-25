@@ -41,6 +41,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'google_token_expires_at',
         'email_verified_at',
         'rombel_id',
+        'kamar_id',
+        'madin_kelas_id',
+        'nis',
+        'jenis_kelamin',
         'kartu_santri_path',
     ];
 
@@ -271,5 +275,29 @@ class User extends Authenticatable implements MustVerifyEmail
     public function rombel()
     {
         return $this->belongsTo(Rombel::class, 'rombel_id');
+    }
+
+    /**
+     * Kamar pondok santri.
+     */
+    public function kamar()
+    {
+        return $this->belongsTo(Kamar::class, 'kamar_id');
+    }
+
+    /**
+     * Kelas Madrasah Diniyah santri.
+     */
+    public function madinKelas()
+    {
+        return $this->belongsTo(MadinKelas::class, 'madin_kelas_id');
+    }
+
+    /**
+     * Riwayat setoran pondok santri.
+     */
+    public function setorans()
+    {
+        return $this->hasMany(PondokSetoran::class, 'santri_id');
     }
 }

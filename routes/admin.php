@@ -24,6 +24,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ],
             'settings' => [
                 'kartu_santri_aktif' => AppSetting::kartuSantriAktif(),
+                'db_sync_enabled'    => \App\Services\DatabaseSyncService::isLocal()
+                    && ! empty(\App\Services\DatabaseSyncService::getVpsUrl()),
             ],
         ]);
     })->name('dashboard');
@@ -49,6 +51,22 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // App Settings
     Route::post('settings/kartu-santri-toggle', [AppSettingController::class, 'toggleKartuSantri'])
         ->name('settings.kartu-santri-toggle');
+
+    // Manajemen Kamar (Pondok / Asrama)
+    Route::resource('kamars', \App\Http\Controllers\Admin\KamarController::class);
+    Route::post('kamars/{kamar}/assign-santri', [\App\Http\Controllers\Admin\KamarController::class, 'assignSantri'])->name('kamars.assign-santri');
+    Route::post('kamars/{kamar}/remove-santri', [\App\Http\Controllers\Admin\KamarController::class, 'removeSantri'])->name('kamars.remove-santri');
+
+    // Manajemen Kelas Madin (Madrasah Diniyah)
+    Route::resource('madin-kelas', \App\Http\Controllers\Admin\MadinKelasController::class);
+    Route::post('madin-kelas/{madinKela}/assign-santri', [\App\Http\Controllers\Admin\MadinKelasController::class, 'assignSantri'])->name('madin-kelas.assign-santri');
+    Route::post('madin-kelas/{madinKela}/remove-santri', [\App\Http\Controllers\Admin\MadinKelasController::class, 'removeSantri'])->name('madin-kelas.remove-santri');
+
+    // Monitoring & Setoran Pondok
+    Route::get('pondok/setoran', [\App\Http\Controllers\Pondok\SetoranController::class, 'index'])->name('pondok.setoran.index');
+    Route::get('pondok/input-kamar', [\App\Http\Controllers\Pondok\SetoranController::class, 'inputKamar'])->name('pondok.input-kamar');
+    Route::post('pondok/setoran', [\App\Http\Controllers\Pondok\SetoranController::class, 'store'])->name('pondok.setoran.store');
+    Route::delete('pondok/setoran/{id}', [\App\Http\Controllers\Pondok\SetoranController::class, 'destroy'])->name('pondok.setoran.destroy');
 
     // Tarik database dari VPS (menimpa database lokal)
     Route::post('db-sync/pull', [\App\Http\Controllers\Admin\DatabaseSyncController::class, 'pull'])

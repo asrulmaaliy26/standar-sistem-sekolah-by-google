@@ -20,7 +20,7 @@ export function NavMain({ items = [], label }: { items: NavItem[]; label?: strin
                                     <span>{item.title}</span>
                                 </a>
                             ) : (
-                                <Link href={item.href} prefetch>
+                                <Link href={item.href}>
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>

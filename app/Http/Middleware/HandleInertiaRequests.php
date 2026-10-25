@@ -41,10 +41,13 @@ class HandleInertiaRequests extends Middleware
 
         $rombels = [];
         if ($request->user()) {
-            $mode = $request->user()->getActiveNavigationMode();
+            $user = $request->user();
+            $mode = $user->getActiveNavigationMode();
             $isSiswa = ($mode['type'] === 'role' && $mode['value'] === 'murid')
-                || ($request->user()->roles->pluck('name')->contains('murid'));
-            if ($isSiswa && $request->user()->rombel_id === null) {
+                || ($user->roles->pluck('name')->contains('murid'));
+            $isAdmin = $user->isAdmin() || $user->roles->pluck('name')->contains('superadmin');
+
+            if (($isSiswa && $user->rombel_id === null) || $isAdmin) {
                 $rombels = \App\Models\Rombel::with('jenjang:id,nama')->orderBy('name')->get(['id', 'name', 'jenjang_id']);
             }
         }
@@ -61,8 +64,8 @@ class HandleInertiaRequests extends Middleware
                         return null;
                     }
 
-                    // Pastikan role/jabatan tersedia di frontend untuk sidebar.
-                    $user->loadMissing('roles', 'jabatan');
+                    // Pastikan role/jabatan/rombel/kamar/madin tersedia di frontend.
+                    $user->loadMissing('roles', 'jabatan', 'rombel', 'kamar', 'madinKelas');
 
                     return [
                         ...$user->toArray(),
@@ -74,6 +77,20 @@ class HandleInertiaRequests extends Middleware
                             'id'   => $j->id,
                             'name' => $j->name,
                         ])->values(),
+                        'rombel'      => $user->rombel ? [
+                            'id'   => $user->rombel->id,
+                            'name' => $user->rombel->name,
+                        ] : null,
+                        'kamar'       => $user->kamar ? [
+                            'id'         => $user->kamar->id,
+                            'nama_kamar' => $user->kamar->nama_kamar,
+                            'gedung'     => $user->kamar->gedung,
+                        ] : null,
+                        'madin_kelas' => $user->madinKelas ? [
+                            'id'         => $user->madinKelas->id,
+                            'nama_kelas' => $user->madinKelas->nama_kelas,
+                            'tingkat'    => $user->madinKelas->tingkat,
+                        ] : null,
                     ];
                 })(),
                 'is_impersonating' => session()->has('impersonated_by'),

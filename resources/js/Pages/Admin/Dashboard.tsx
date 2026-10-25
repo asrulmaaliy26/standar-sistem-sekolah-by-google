@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Users, Shield, School, Calendar, ClipboardList, Briefcase, LayoutGrid, Layers, CreditCard, CheckCircle, XCircle, DatabaseZap, Loader2 } from 'lucide-react';
+import { Users, Shield, School, Calendar, ClipboardList, Briefcase, LayoutGrid, Layers, CreditCard, CheckCircle, XCircle, DatabaseZap, Loader2, Home, BookOpen, ClipboardCheck } from 'lucide-react';
 import { type SharedData } from '@/types';
 
 interface AdminDashboardProps {
@@ -17,18 +17,21 @@ interface AdminDashboardProps {
 }
 
 const MENU_CARDS = [
+    { title: 'Kamar Pondok', desc: 'Kelola kamar & asrama santri', href: 'admin.kamars.index', icon: Home, gradient: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-600' },
+    { title: 'Kelas Madin', desc: 'Kelola kelas Madrasah Diniyah', href: 'admin.madin-kelas.index', icon: BookOpen, gradient: 'from-purple-500 to-indigo-600', bg: 'bg-purple-50 dark:bg-purple-950/30', text: 'text-purple-600' },
+    { title: 'Setoran Pondok', desc: 'Pusat setoran & mutaba\'ah santri', href: 'admin.pondok.setoran.index', icon: ClipboardCheck, gradient: 'from-amber-500 to-emerald-600', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-600' },
+    { title: 'Data Jenjang', desc: 'Kelola jenjang pendidikan', href: 'admin.jenjang.index', icon: Layers, gradient: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-50 dark:bg-indigo-950/30', text: 'text-indigo-600' },
+    { title: 'Data Kelas', desc: 'Kelola rombongan belajar', href: 'admin.rombels.index', icon: School, gradient: 'from-cyan-500 to-blue-600', bg: 'bg-cyan-50 dark:bg-cyan-950/30', text: 'text-cyan-600' },
     { title: 'Manajemen User', desc: 'Kelola akun & hak akses pengguna', href: 'admin.users.index', icon: Users, gradient: 'from-blue-500 to-indigo-600', bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-600' },
     { title: 'Manajemen Role', desc: 'Buat dan atur role pengguna', href: 'admin.roles.index', icon: Shield, gradient: 'from-violet-500 to-purple-600', bg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-600' },
     { title: 'Manajemen Jabatan', desc: 'Kelola jabatan fungsional', href: 'admin.jabatan.index', icon: Briefcase, gradient: 'from-amber-500 to-orange-500', bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-600' },
-    { title: 'Data Jenjang', desc: 'Kelola jenjang pendidikan', href: 'admin.jenjang.index', icon: Layers, gradient: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-50 dark:bg-indigo-950/30', text: 'text-indigo-600' },
-    { title: 'Data Kelas', desc: 'Kelola rombongan belajar', href: 'admin.rombels.index', icon: School, gradient: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-600' },
     { title: 'Kalender Kegiatan', desc: 'Jadwal & agenda sekolah', href: 'calendar', icon: Calendar, gradient: 'from-orange-500 to-rose-500', bg: 'bg-orange-50 dark:bg-orange-950/30', text: 'text-orange-600' },
     { title: 'Rekapan Kegiatan', desc: 'Laporan dan rekap kalender', href: 'calendar.recap', icon: ClipboardList, gradient: 'from-pink-500 to-rose-600', bg: 'bg-pink-50 dark:bg-pink-950/30', text: 'text-pink-600' },
 ];
 
 export default function AdminDashboard({ stats, settings }: AdminDashboardProps) {
     const { auth } = usePage<SharedData>().props;
-    const isSuperAdmin = (auth.user as any)?.roles?.includes('superadmin');
+    const isSuperAdmin = (auth.user as any)?.roles?.includes('superadmin') || Boolean((auth.user as any)?.is_admin);
 
     const STATS = [
         { label: 'Total Pengguna', value: stats.total_users, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
@@ -36,12 +39,42 @@ export default function AdminDashboard({ stats, settings }: AdminDashboardProps)
         { label: 'Jumlah Admin', value: stats.total_admins, icon: LayoutGrid, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
     ];
 
-    const kartuAktif = settings?.kartu_santri_aktif ?? true;
+    const [kartuAktif, setKartuAktif] = React.useState<boolean>(() => {
+        return Boolean(settings?.kartu_santri_aktif ?? true);
+    });
+    const [isToggling, setIsToggling] = React.useState(false);
+
+    React.useEffect(() => {
+        if (settings?.kartu_santri_aktif !== undefined) {
+            setKartuAktif(Boolean(settings.kartu_santri_aktif));
+        }
+    }, [settings?.kartu_santri_aktif]);
 
     const toggleKartuSantri = () => {
-        router.post(route('admin.settings.kartu-santri-toggle'), {}, {
-            preserveScroll: true,
-        });
+        if (isToggling) return;
+        const nextVal = !kartuAktif;
+        setKartuAktif(nextVal);
+        setIsToggling(true);
+
+        router.post(
+            route('admin.settings.kartu-santri-toggle'),
+            {},
+            {
+                preserveScroll: true,
+                preserveState: false,
+                onSuccess: () => {
+                    if (typeof (router as any).flushAll === 'function') {
+                        (router as any).flushAll();
+                    }
+                },
+                onError: () => {
+                    setKartuAktif(!nextVal);
+                },
+                onFinish: () => {
+                    setIsToggling(false);
+                },
+            }
+        );
     };
 
     const [syncing, setSyncing] = React.useState(false);
@@ -128,8 +161,11 @@ export default function AdminDashboard({ stats, settings }: AdminDashboardProps)
                                     {/* Toggle Switch */}
                                     <button
                                         onClick={toggleKartuSantri}
+                                        disabled={isToggling}
                                         title={kartuAktif ? 'Klik untuk menonaktifkan' : 'Klik untuk mengaktifkan'}
                                         className={`relative inline-flex h-6 w-11 items-center rounded-full flex-shrink-0 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                            isToggling ? 'opacity-70 cursor-wait' : 'cursor-pointer'
+                                        } ${
                                             kartuAktif
                                                 ? 'bg-emerald-500 focus:ring-emerald-500'
                                                 : 'bg-slate-300 dark:bg-slate-600 focus:ring-slate-400'

@@ -7,8 +7,15 @@ Route::middleware(['auth', 'verified', 'role:murid'])->prefix('siswa')->name('si
     Route::post('/profile/rombel', [\App\Http\Controllers\Siswa\ProfileController::class, 'updateRombel'])->name('profile.rombel');
     Route::post('/profile/verify-card', [\App\Http\Controllers\Siswa\ProfileController::class, 'verifyCard'])->name('profile.verify-card');
 
-    // Daftar Kelas (Classroom Links)
+    // Daftar Kelas (Classroom Links - Formal)
     Route::get('/classroom-links', [\App\Http\Controllers\Siswa\ClassroomLinkController::class, 'index'])->name('classroom-links.index');
+
+    // Pondok Pesantren (Kamar, Setoran & Rutinitas Santri)
+    Route::get('/pondok', [\App\Http\Controllers\Siswa\PondokController::class, 'index'])->name('pondok.index');
+
+    // Madrasah Diniyah (Kelas Madin & Tautan Diniyah)
+    Route::get('/madin', [\App\Http\Controllers\Siswa\MadinController::class, 'index'])->name('madin.index');
+
     // Ujian (CBT)
     Route::get('/exam/{link}/{type}', [\App\Http\Controllers\Siswa\ExamController::class, 'play'])->name('exam.play');
     Route::post('/exam/{link}/{type}/violation', [\App\Http\Controllers\Siswa\ExamController::class, 'reportViolation'])->name('exam.violation');

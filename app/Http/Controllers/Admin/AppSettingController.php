@@ -26,6 +26,8 @@ class AppSettingController extends Controller
 
         AppSetting::set('kartu_santri_aktif', $newVal);
 
-        return back()->with('success', 'Pengaturan Verifikasi Kartu Santri berhasil diperbarui.');
+        return redirect()->route('admin.dashboard')
+            ->with('success', 'Pengaturan Verifikasi Kartu Santri berhasil diperbarui.')
+            ->header('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate');
     }
 }

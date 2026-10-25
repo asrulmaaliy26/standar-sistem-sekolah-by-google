@@ -112,14 +112,35 @@ export default function Index({ links, rombel, examSessions = [] }: IndexProps) 
 
                 {/* ── Belum memilih kelas ── */}
                 {!rombel ? (
-                    <div className="flex flex-col items-center justify-center text-center py-20 bg-amber-50 dark:bg-amber-950/20 border-2 border-dashed border-amber-300 rounded-2xl">
-                        <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-5">
-                            <AlertTriangle className="w-10 h-10 text-amber-500" />
+                    <div className="relative overflow-hidden flex flex-col items-center justify-center text-center py-16 px-6 bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent border-2 border-dashed border-amber-400/40 rounded-3xl shadow-sm">
+                        <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 text-white rounded-2xl shadow-lg shadow-amber-500/30 flex items-center justify-center mb-5">
+                            <AlertTriangle className="w-10 h-10" />
                         </div>
-                        <h2 className="text-2xl font-bold text-amber-800 dark:text-amber-300 mb-2">Profil Belum Lengkap</h2>
-                        <p className="text-amber-700 dark:text-amber-400 max-w-sm">
-                            Anda belum memilih kelas. Segarkan halaman untuk memunculkan popup pemilihan kelas.
+                        <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground mb-3">Profil Belum Lengkap</h2>
+                        <p className="text-muted-foreground max-w-md text-sm sm:text-base leading-relaxed mb-6">
+                            Anda belum memilih kelas belajar. Silakan pilih kelas atau lengkapi data profil Anda untuk mengakses tautan Google Classroom.
                         </p>
+                        
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                            <Link
+                                href={route('profile.edit')}
+                                className="inline-flex items-center gap-2.5 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-md shadow-blue-500/20 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                            >
+                                <User className="w-4 h-4" />
+                                <span>Lengkapi Profil Saya</span>
+                            </Link>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    window.dispatchEvent(new CustomEvent('open-rombel-popup'));
+                                }}
+                                className="inline-flex items-center gap-2.5 px-6 py-3 rounded-xl bg-card border border-border hover:bg-muted text-foreground font-semibold shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                            >
+                                <BookOpen className="w-4 h-4 text-amber-500" />
+                                <span>Pilih Kelas Sekarang</span>
+                            </button>
+                        </div>
                     </div>
 
                 ) : links.length === 0 ? (

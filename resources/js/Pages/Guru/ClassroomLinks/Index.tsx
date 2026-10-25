@@ -45,7 +45,7 @@ interface ClassroomLink {
     hari_belajar: string | null;
     jam_mulai: string | null;
     jam_selesai: string | null;
-    rombel: Rombel;
+    rombel?: Rombel | null;
     created_at: string;
 }
 interface IndexProps {
@@ -435,9 +435,9 @@ export default function Index({ links, rombels, jenjangList }: IndexProps) {
         if (confirm('Hapus tautan kelas ini?')) createForm.delete(route('guru.classroom-links.destroy', id));
     };
 
-    const grouped = links.reduce<Record<string, { rombel: Rombel; items: ClassroomLink[] }>>((acc, link) => {
-        const key = String(link.rombel?.id);
-        if (!acc[key]) acc[key] = { rombel: link.rombel, items: [] };
+    const grouped = links.reduce<Record<string, { rombel: Rombel | null; items: ClassroomLink[] }>>((acc, link) => {
+        const key = link.rombel?.id ? String(link.rombel.id) : 'no-rombel';
+        if (!acc[key]) acc[key] = { rombel: link.rombel || null, items: [] };
         acc[key].items.push(link);
         return acc;
     }, {});
@@ -488,19 +488,21 @@ export default function Index({ links, rombels, jenjangList }: IndexProps) {
 
                 {/* Grouped list */}
                 <div className="space-y-10">
-                    {Object.values(grouped).map(({ rombel, items }) => (
-                        <div key={rombel.id}>
+                    {Object.values(grouped).map(({ rombel, items }, idx) => (
+                        <div key={rombel?.id ?? `group-${idx}`}>
                             <div className="border-border mb-4 flex items-center gap-3 border-b pb-3">
                                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/30">
                                     <GraduationCap className="h-5 w-5 text-emerald-600" />
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {rombel.jenjang && (
+                                    {rombel?.jenjang && (
                                         <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
                                             {rombel.jenjang.nama}
                                         </span>
                                     )}
-                                    <h2 className="text-foreground text-lg font-bold">Kelas {rombel.name}</h2>
+                                    <h2 className="text-foreground text-lg font-bold">
+                                        {rombel ? `Kelas ${rombel.name}` : 'Mata Pelajaran Umum'}
+                                    </h2>
                                 </div>
                                 <span className="bg-muted text-muted-foreground ml-1 rounded-full px-2.5 py-1 text-xs font-medium">
                                     {items.length} mata pelajaran
